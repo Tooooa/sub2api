@@ -22,7 +22,7 @@ import (
 // 重试相关常量
 const (
 	// 最大尝试次数（包含首次请求）。过多重试会导致请求堆积与资源耗尽。
-	maxRetryAttempts = 5
+	maxRetryAttempts = 10
 
 	// 指数退避：第 N 次失败后的等待 = retryBaseDelay * 2^(N-1)，并且上限为 retryMaxDelay。
 	retryBaseDelay = 300 * time.Millisecond
