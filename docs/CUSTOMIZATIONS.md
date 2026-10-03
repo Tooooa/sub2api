@@ -1,7 +1,7 @@
 # Repository customizations
 
-This deployment follows `origin/dev` and intentionally keeps only three local
-operational extensions:
+This deployment tracks a reviewed upstream release tag. The intended supported
+customization boundary contains only three local operational extensions:
 
 1. **Blue-green deployment**
    - `deploy/blue-green-deploy.sh`
@@ -18,7 +18,13 @@ operational extensions:
 
 Everything else should continue to follow upstream. In particular, image model
 routing, model defaults, retry policy, migrations, API behavior, and normal CI
-workflows are upstream-owned. The production image currently uses upstream's
+workflows are upstream-owned. However, the `0.2.13-custom.1` rollout branch
+still carries legacy downstream backend fixes and local tooling inherited from
+the deployed `0.2.8-custom.1` image. They are retained for this rollout to
+avoid an unreviewed behavior change, not approved as permanent extensions.
+Audit and remove or upstream them in a separate verified change; until then,
+do not assume this branch differs from upstream in only three places. The
+production image currently uses upstream's
 `gpt-5.6-luna` Responses driver for the `gpt-image-2` image tool, with
 `SUB2API_IMAGES_MAIN_MODEL` available as the upstream-provided override.
 
@@ -31,8 +37,9 @@ The following are deliberately not part of this customization layer:
 
 ## Updating from upstream
 
-1. Fetch and integrate the latest `origin/dev` in an isolated worktree.
-2. Resolve conflicts by preserving only the three extensions above.
+1. Fetch and integrate the selected upstream release tag in an isolated worktree.
+2. Resolve conflicts, preserve the three supported extensions, and review any
+   remaining legacy differences against the tagged upstream source.
 3. Run the blue-green, recharge, Cockpit sync, and relevant Go test suites.
 4. Build a `linux/amd64` image in CI or on a separate build host.
 5. Back up production, then deploy the prebuilt image with the blue-green
