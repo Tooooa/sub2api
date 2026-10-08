@@ -48,3 +48,9 @@ The following are deliberately not part of this customization layer:
 Never build source code or container images on the Los Angeles production
 server. A Codex heartbeat may periodically inspect upstream and recommend an
 update, but it must not deploy without explicit confirmation.
+
+## Runtime provider configuration
+
+Production provider accounts are configured through the existing admin API;
+they do not add source customizations. See [BigModel GLM](BIGMODEL.md) for the
+verified account, group model allowlist, client usage, and rollback record.
