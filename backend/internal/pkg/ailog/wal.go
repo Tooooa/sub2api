@@ -94,13 +94,13 @@ func NewWAL(dir string, maxBytes int64) (*WAL, error) {
 	name := f.Name()
 	if err := lockFile(f); err != nil {
 		_ = f.Close()
-		_ = os.Remove(name)
+		_ = os.Remove(name) // #nosec G703 -- name is returned by os.CreateTemp in the validated WAL directory
 		return nil, err
 	}
 	if err := f.Close(); err != nil {
 		return nil, err
 	}
-	if err := os.Remove(name); err != nil {
+	if err := os.Remove(name); err != nil { // #nosec G703 -- name is returned by os.CreateTemp, not external input
 		return nil, err
 	}
 	go w.run()
