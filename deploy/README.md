@@ -17,6 +17,9 @@ This directory contains files for deploying Sub2API on Linux servers and Apple-s
 | `docker-compose.yml` | Docker Compose configuration (named volumes) |
 | `docker-compose.local.yml` | Docker Compose configuration (local directories, easy migration) |
 | `docker-deploy.sh` | **One-click Docker deployment script (recommended)** |
+| `blue-green-deploy.sh` | Pre-built image blue-green deployment with health gate and rollback |
+| `BLUE_GREEN.md` | Blue-green deployment preparation and operating procedure |
+| `sub2api-auto-recharge.py` | Source-managed low-balance recharge job; follows the active blue-green slot |
 | `apple-container.sh` | Native Apple `container` lifecycle script |
 | `APPLE_CONTAINER.md` | Apple `container` deployment and operations guide |
 | `.env.example` | Container environment variables template |
@@ -42,9 +45,25 @@ Apple-silicon Macs running macOS 26 can run the complete Sub2API, PostgreSQL, an
 ./apple-container.sh logs app -f
 ```
 
-The script uses Apple named volumes, starts dependencies in order, and performs live readiness checks. It does not provide a continuous restart supervisor; run `./apple-container.sh up` after a host reboot. Docker Compose remains the recommended production deployment path.
+The script uses Apple named volumes, starts dependencies in order, and performs live readiness checks. The application container supervises the Sub2API process so the Web UI's update-and-restart flow can relaunch an updated binary. It does not provide host-level automatic startup; run `./apple-container.sh up` after a host reboot. Docker Compose remains the recommended production deployment path.
 
 See [APPLE_CONTAINER.md](./APPLE_CONTAINER.md) for configuration, upgrades, persistence, networking behavior, and limitations.
+
+## Blue-Green Production Deployment
+
+For a production instance that must stay available during application image
+updates, use [BLUE_GREEN.md](./BLUE_GREEN.md). It keeps PostgreSQL and Redis
+in place, starts the new application on an alternate loopback port, checks the
+candidate, and hot-reloads Caddy before draining the old container.
+
+The workflow requires a pre-built `linux/amd64` image. It never builds on the
+production host and never uses `docker compose down`.
+
+The automatic recharge service must run the source-managed
+`sub2api-auto-recharge.py`. It reads `deploy/.blue-green-active` and uses the
+active container and loopback port, so a blue-green cutover does not silently
+disable scheduled balance checks. It considers every active account, including
+administrators, when applying the low-balance threshold.
 
 ---
 
@@ -79,8 +98,8 @@ docker compose -f docker-compose.local.yml up -d
 # View logs
 docker compose -f docker-compose.local.yml logs -f sub2api
 
-# If admin password was auto-generated, find it in logs:
-docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
+# If admin email/password were auto-generated, find them in logs:
+docker compose -f docker-compose.local.yml logs sub2api | grep "Generated admin"
 
 # Access Web UI
 # http://localhost:8080
@@ -112,7 +131,7 @@ mkdir -p data postgres_data redis_data
 # Start all services using local directory version
 docker compose -f docker-compose.local.yml up -d
 
-# View logs (check for auto-generated admin password)
+# View logs (check for auto-generated admin email and password)
 docker compose -f docker-compose.local.yml logs -f sub2api
 
 # Access Web UI
@@ -136,14 +155,14 @@ When using Docker Compose with `AUTO_SETUP=true`:
    - Connects to PostgreSQL and Redis
    - Applies database migrations (SQL files in `backend/migrations/*.sql`) and records them in `schema_migrations`
    - Generates JWT secret (if not provided)
-   - Creates admin account (password auto-generated if not provided)
+   - Creates admin account (email and password auto-generated if not provided; a provided password must be 8-72 bytes)
    - Writes config.yaml
 
 2. No manual Setup Wizard needed - just configure `.env` and start
 
-3. If `ADMIN_PASSWORD` is not set, check logs for the generated password:
+3. If `ADMIN_EMAIL` / `ADMIN_PASSWORD` are not set, check logs for the generated admin email (login username) and password:
    ```bash
-   docker compose logs sub2api | grep "admin password"
+   docker compose logs sub2api | grep "Generated admin"
    ```
 
 ### Startup and Database Recovery
@@ -257,8 +276,8 @@ docker compose down -v
 | `JWT_SECRET` | **Recommended** | *(auto-generated)* | JWT secret (fixed for persistent sessions) |
 | `TOTP_ENCRYPTION_KEY` | **Recommended** | *(auto-generated)* | TOTP encryption key (fixed for persistent 2FA) |
 | `SERVER_PORT` | No | `8080` | Server port |
-| `ADMIN_EMAIL` | No | `admin@sub2api.local` | Admin email |
-| `ADMIN_PASSWORD` | No | *(auto-generated)* | Admin password |
+| `ADMIN_EMAIL` | No | *(auto-generated)* | Admin email (login username) |
+| `ADMIN_PASSWORD` | No | *(auto-generated)* | Admin password (8-72 bytes) |
 | `TZ` | No | `Asia/Shanghai` | Timezone |
 | `UPDATE_GITHUB_TOKEN` | No | *(empty)* | Token for `api.github.com` release checks only; asset downloads remain anonymous. |
 | `GEMINI_OAUTH_CLIENT_ID` | No | *(builtin)* | Google OAuth client ID (Gemini OAuth). Leave empty to use the built-in Gemini CLI client. |

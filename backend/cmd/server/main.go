@@ -18,6 +18,7 @@ import (
 	_ "github.com/Wei-Shaw/sub2api/ent/runtime"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ailog"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/setup"
@@ -36,6 +37,8 @@ var (
 	Date      = "unknown"
 	BuildType = "source" // "source" for manual builds, "release" for CI builds (set by ldflags)
 )
+
+const serverShutdownTimeout = 30 * time.Second
 
 func init() {
 	// 如果 Version 已通过 ldflags 注入（例如 -X main.Version=...），则不要覆盖。
@@ -152,6 +155,7 @@ func runMainServer() {
 	if err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
+	defer ailog.Shutdown()
 	defer app.Cleanup()
 	if app.PluginManager != nil {
 		if err := app.PluginManager.Start(context.Background()); err != nil {
@@ -184,7 +188,7 @@ func runMainServer() {
 
 	log.Println("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), serverShutdownTimeout)
 	defer cancel()
 
 	if err := app.Server.Shutdown(ctx); err != nil {

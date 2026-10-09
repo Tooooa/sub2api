@@ -216,9 +216,10 @@ func (s *AntigravityGatewayService) applyErrorPolicy(p antigravityRetryLoopParam
 		}
 		return true, http.StatusInternalServerError, nil
 	case ErrorPolicyMatched:
-		if s.handleAntigravityModelRateLimitBeforePolicy(p, statusCode, headers, respBody) {
-			return true, statusCode, nil
-		}
+		// Matched means an explicit administrator-selected code or a high-confidence
+		// account-wide terminal failure. It must reach handleUpstreamError before
+		// any model-level 429 fallback; otherwise "disable on 429" only cools one
+		// model and the unusable account remains active.
 		_ = p.handleError(p.ctx, p.prefix, p.account, statusCode, headers, respBody,
 			p.requestedModel, p.groupID, p.sessionHash, p.isStickySession)
 		return true, statusCode, nil
@@ -294,6 +295,18 @@ func mapAntigravityModel(account *Account, requestedModel string) string {
 // getMappedModel 获取映射后的模型名
 // 完全依赖映射配置：账户映射（通配符）→ 默认映射兜底
 func (s *AntigravityGatewayService) getMappedModel(account *Account, requestedModel string) string {
+	return s.getMappedModelForThinkingLevel(account, requestedModel, "")
+}
+
+// getMappedModelForThinkingLevel 在常规映射之前先把裸 Gemini 模型名
+// （gemini-3.x-flash）解析到上游目录里真实存在的 -low/-medium/-high/-tiered 变体。
+// Antigravity 目录只登记带后缀的变体，裸名直接转发会被上游以
+// 404 "Requested entity was not found." 拒绝，因此所有转发入口都必须经过这一步。
+// thinkingLevel 为空时按 high 兜底；调用方可按自身协议传入推导出的档位。
+func (s *AntigravityGatewayService) getMappedModelForThinkingLevel(account *Account, requestedModel string, thinkingLevel string) string {
+	if mapped, ok := resolveGeminiThinkingVariantForLevel(account, requestedModel, thinkingLevel); ok {
+		return mapped
+	}
 	return mapAntigravityModel(account, requestedModel)
 }
 
