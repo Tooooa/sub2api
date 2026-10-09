@@ -56,3 +56,5 @@ they do not add source customizations. See [BigModel GLM](BIGMODEL.md) for the
 verified account, group model allowlist, client usage, and rollback record.
 See [Image model access](image-model-access.md) for the Sunburst allowlist
 configuration and verified public Image API generation record.
+See [Production model access](model-access.md) for the current curated group
+allowlist, unsupported entries removed after verification, and recovery record.
