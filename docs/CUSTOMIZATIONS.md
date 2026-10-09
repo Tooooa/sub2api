@@ -54,3 +54,5 @@ update, but it must not deploy without explicit confirmation.
 Production provider accounts are configured through the existing admin API;
 they do not add source customizations. See [BigModel GLM](BIGMODEL.md) for the
 verified account, group model allowlist, client usage, and rollback record.
+See [Image model access](image-model-access.md) for the Sunburst allowlist
+configuration and verified public Image API generation record.
