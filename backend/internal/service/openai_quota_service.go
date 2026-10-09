@@ -136,8 +136,6 @@ type OpenAIQuotaService struct {
 	proxyRepo            ProxyRepository
 	tokenProvider        *OpenAITokenProvider
 	privacyClientFactory PrivacyClientFactory
-	tempUnschedCache     TempUnschedCache
-	runtimeBlocker       AccountRuntimeBlocker
 	referralClient       OpenAIReferralClient
 	tempUnschedCache     TempUnschedCache
 	runtimeBlocker       AccountRuntimeBlocker

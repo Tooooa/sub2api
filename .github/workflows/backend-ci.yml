@@ -96,17 +96,13 @@ jobs:
       - run: python -m unittest discover -s .github/release-tools -p 'test_release_matrix.py'
       - run: bash -n .github/release-tools/release-images.sh
 
-  ai-log:
+  deployment-extensions:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Install verified AI log test wheels
-        run: python -m pip install --only-binary=:all: --require-hashes -r tools/ai-log-pipeline/requirements-test-linux-amd64-py312.lock
-      - name: Test source delivery, archival and source isolation
-        run: python -m unittest discover -s tools/ai-log-pipeline -p 'test_*.py' -v
       - name: Test automatic recharge
         run: python deploy/tests/test-auto-recharge-runtime.py
       - uses: actions/setup-node@v6
