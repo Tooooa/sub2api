@@ -139,6 +139,8 @@ type OpenAIQuotaService struct {
 	tempUnschedCache     TempUnschedCache
 	runtimeBlocker       AccountRuntimeBlocker
 	referralClient       OpenAIReferralClient
+	tempUnschedCache     TempUnschedCache
+	runtimeBlocker       AccountRuntimeBlocker
 	agentIdentityTaskMu  sync.Mutex
 	agentIdentityWS      agentIdentityWSConnectionInvalidator
 }

@@ -59,6 +59,16 @@ application service: Compose may resurrect the stopped legacy container on
 port `8080`. Use this script for application image updates; Compose can still
 manage PostgreSQL and Redis.
 
+## Real-request gate
+
+Optionally set `SUB2API_PRE_CUTOVER_CHECK` to an absolute executable script.
+After candidate health succeeds and before changing Caddy, the deployer calls
+it with the candidate host port and container name as its two arguments.
+Use it for real model, streaming and billing checks against the candidate.
+A nonzero exit stops the deployment and removes only the failed candidate;
+the original active route and container remain available. Keep credentials
+in private files rather than the command line or script output.
+
 ## Safety boundaries
 
 - The candidate gets a copied `/app/data` directory so two application

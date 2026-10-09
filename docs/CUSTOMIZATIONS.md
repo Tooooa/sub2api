@@ -1,7 +1,8 @@
 # Repository customizations
 
-This deployment tracks a reviewed upstream release tag. The intended supported
-customization boundary contains only three local operational extensions:
+This deployment integrates the reviewed `MaYiding/sub2api` dev snapshot
+`9c2cfe05223208ae6ed49d83fec315f935bc78d9` (upstream 0.2.15) with the
+Los Angeles production code line. It preserves four operational extensions:
 
 1. **Blue-green deployment**
    - `deploy/blue-green-deploy.sh`
@@ -15,6 +16,13 @@ customization boundary contains only three local operational extensions:
 3. **Cockpit token synchronization**
    - `tools/cockpit-token-sync/`
    - the minimal account/quota service integration required by that syncer
+
+4. **AI traffic capture and central archival**
+   - `backend/internal/pkg/ailog/` and authenticated gateway/transport hooks
+   - `tools/ai-log-pipeline/`, `deploy/install-ai-log-shipper.sh`
+   - an independent shared source WAL mounted into both deployment slots
+   - explicitly enabled with site-specific credentials; see
+     [Los Angeles logging rollout](../deploy/AI_LOG_LOS_ANGELES.md)
 
 Everything else should continue to follow upstream. In particular, image model
 routing, model defaults, retry policy, migrations, API behavior, and normal CI
@@ -31,16 +39,16 @@ production image currently uses upstream's
 The following are deliberately not part of this customization layer:
 
 - the former retry-count change from 5 to 10;
-- prompt or response capture;
 - account-specific operational skills;
 - a repository-scheduled production auto-deploy workflow.
 
 ## Updating from upstream
 
 1. Fetch and integrate the selected upstream release tag in an isolated worktree.
-2. Resolve conflicts, preserve the three supported extensions, and review any
+2. Resolve conflicts, preserve the four supported extensions, and review any
    remaining legacy differences against the tagged upstream source.
-3. Run the blue-green, recharge, Cockpit sync, and relevant Go test suites.
+3. Run the blue-green, recharge, Cockpit sync, AI log pipeline and relevant Go
+   test suites. Validate shared database migrations before production cutover.
 4. Build a `linux/amd64` image in CI or on a separate build host.
 5. Back up production, then deploy the prebuilt image with the blue-green
    script and verify public health plus a real feature smoke test.
