@@ -26,9 +26,9 @@ Los Angeles production code line. It preserves four operational extensions:
 
 Everything else should continue to follow upstream. In particular, image model
 routing, model defaults, retry policy, migrations, API behavior, and normal CI
-workflows are upstream-owned. However, the `0.2.13-custom.1` rollout branch
-still carries legacy downstream backend fixes and local tooling inherited from
-the deployed `0.2.8-custom.1` image. They are retained for this rollout to
+workflows are upstream-owned. The `0.2.15-custom.1` release retains the legacy
+downstream backend fixes and local tooling inherited through the deployed
+`0.2.13-custom.1` code line. They are retained for this rollout to
 avoid an unreviewed behavior change, not approved as permanent extensions.
 Audit and remove or upstream them in a separate verified change; until then,
 do not assume this branch differs from upstream in only three places. The
@@ -53,8 +53,10 @@ The following are deliberately not part of this customization layer:
 5. Back up production, then deploy the prebuilt image with the blue-green
    script and verify public health plus a real feature smoke test.
 
-Never build source code or container images on the Los Angeles production
-server. A Codex heartbeat may periodically inspect upstream and recommend an
+The 0.2.15 release image was built in GitHub Actions. The user conditionally
+allowed a resource-bounded Los Angeles build for this specific rollout, but
+that option was not used; future automated updates retain the general
+production build ban. A Codex heartbeat may inspect upstream and recommend an
 update, but it must not deploy without explicit confirmation.
 
 ## Runtime provider configuration
