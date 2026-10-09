@@ -73,6 +73,16 @@ func TestCaptureReportsLossAndPreservesPartialStream(t *testing.T) {
 	}
 }
 
+func TestWALRejectsUnsafeConfiguredPaths(t *testing.T) {
+	base := t.TempDir()
+	for _, dir := range []string{"relative-spool", string(filepath.Separator), base + string(filepath.Separator) + ".." + string(filepath.Separator) + "spool"} {
+		if w, err := NewWAL(dir, 64<<20); err == nil {
+			w.Close()
+			t.Fatalf("accepted unsafe configured WAL directory %q", dir)
+		}
+	}
+}
+
 func TestWALClosePersistsAllAcknowledgedSubmissions(t *testing.T) {
 	dir := t.TempDir()
 	w, err := NewWAL(dir, 64<<20)

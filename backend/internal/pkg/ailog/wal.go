@@ -68,17 +68,21 @@ func NewWAL(dir string, maxBytes int64) (*WAL, error) {
 	if maxBytes < 64<<20 {
 		return nil, errors.New("WAL limit must be at least 64 MiB")
 	}
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if !filepath.IsAbs(dir) || filepath.Clean(dir) != dir || dir == string(filepath.Separator) {
+		return nil, errors.New("WAL path must be a canonical absolute non-root directory")
+	}
+	// The path comes only from operator configuration, never a gateway request.
+	if err := os.MkdirAll(dir, 0700); err != nil { // #nosec G703 -- operator-configured absolute directory validated above
 		return nil, err
 	}
-	info, err := os.Lstat(dir)
+	info, err := os.Lstat(dir) // #nosec G703 -- operator-configured absolute directory; reject symlinks below
 	if err != nil {
 		return nil, err
 	}
 	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 		return nil, errors.New("WAL path must be a real directory")
 	}
-	if err := os.Chmod(dir, 0700); err != nil {
+	if err := os.Chmod(dir, 0700); err != nil { // #nosec G703 -- validated real operator-configured directory
 		return nil, err
 	}
 	w := &WAL{dir: dir, maxBytes: maxBytes, queue: make(chan []byte, 1024), stop: make(chan struct{}), done: make(chan struct{})}
@@ -159,7 +163,7 @@ func (w *WAL) diskUsage() (int64, error) {
 	}
 	var total int64
 	for _, entry := range entries {
-		if entry.IsDir() || !(strings.HasSuffix(entry.Name(), ".open") || strings.HasSuffix(entry.Name(), ".ready")) {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".open") && !strings.HasSuffix(entry.Name(), ".ready") {
 			continue
 		}
 		info, err := entry.Info()
