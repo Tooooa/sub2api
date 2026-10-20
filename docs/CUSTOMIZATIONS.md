@@ -1,8 +1,9 @@
 # Repository customizations
 
-This deployment integrates the reviewed `MaYiding/sub2api` dev snapshot
-`9c2cfe05223208ae6ed49d83fec315f935bc78d9` (upstream 0.2.15) with the
-Los Angeles production code line. It preserves four operational extensions:
+The 0.2.17-custom.1 candidate merges the original Wei-Shaw/sub2api tag
+`v0.2.17` (`060d0160417782cd962a0c7f460f6cd4565d4916`) into the production
+line based on `0.2.15-custom.1` (`f4d0a1527`). It preserves four operational
+extensions:
 
 1. **Blue-green deployment**
    - `deploy/blue-green-deploy.sh`
@@ -31,7 +32,7 @@ downstream backend fixes and local tooling inherited through the deployed
 `0.2.13-custom.1` code line. They are retained for this rollout to
 avoid an unreviewed behavior change, not approved as permanent extensions.
 Audit and remove or upstream them in a separate verified change; until then,
-do not assume this branch differs from upstream in only three places. The
+do not assume this branch differs from upstream in only four places. The
 production image currently uses upstream's
 `gpt-5.6-luna` Responses driver for the `gpt-image-2` image tool, with
 `SUB2API_IMAGES_MAIN_MODEL` available as the upstream-provided override.

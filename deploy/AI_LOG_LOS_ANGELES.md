@@ -1,7 +1,7 @@
 # Los Angeles AI log deployment
 
-This candidate integrates the 0.2.15 logging snapshot with the current
-0.2.13-custom.1 production code line. Automatic recharge and Cockpit token
+This record describes the historical 0.2.15 logging rollout from the
+0.2.13-custom.1 production code line. See the release records for current state. Automatic recharge and Cockpit token
 sync remain source-identical to the production baseline. Existing provider
 accounts, scheduling flags, model allowlists, balances and keys stay in the
 existing PostgreSQL/Redis services. Do not copy fixture or central databases
@@ -33,10 +33,8 @@ must preserve the WAL and allow its shipper to drain.
 
 Use Tooooa GitHub Actions for CI and a complete linux/amd64 image, including
 the frontend. The Dockerfile preserves pinned base-image digests and upgrades
-the Go toolchain to 1.27.2. Never build on the user's Mac. The latest user
-authorization conditionally permits a resource-bounded Los Angeles build for
-this rollout, but the planned route remains CI; the general production build
-ban is not relaxed for future automated updates.
+the Go toolchain to 1.27.2. Never build on the user's Mac. The Los Angeles production server must never build source or images,
+including recovery and hotfix scenarios. Use only a verified prebuilt image.
 
 The only new SQL migration relative to the deployed baseline is
 `242_drop_platform_check_constraints.sql`, which removes two platform CHECK
