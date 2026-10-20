@@ -1,7 +1,9 @@
 # Los Angeles AI log deployment
 
 This record describes the historical 0.2.15 logging rollout from the
-0.2.13-custom.1 production code line. See the release records for current state. Automatic recharge and Cockpit token
+0.2.13-custom.1 production code line. See the
+[0.2.17 release record](RELEASE_0.2.17_CUSTOM_1.md) for current state and the
+remaining backlog/central replay verification limits. Automatic recharge and Cockpit token
 sync remain source-identical to the production baseline. Existing provider
 accounts, scheduling flags, model allowlists, balances and keys stay in the
 existing PostgreSQL/Redis services. Do not copy fixture or central databases
