@@ -80,9 +80,19 @@ Only the complete synthetic test captures were replayed with the installed
 shipper and original stable event IDs, receiving Kafka acknowledgements for all
 132 events. The production WAL was untouched; downstream deduplication handles
 later copies. This confirms Kafka delivery, not background backlog drainage.
-Central HDD replay was not repeated because the separate admin session was
-not authenticated. No central archival service changed. The historical
-independent-second-copy limitation remains.
+Central HDD replay subsequently passed using the read-only operator credential
+in the user-provided handoff archive, from the Mac only. The web administrator
+password is not included in that archive and was not needed for this check.
+Only source `src-a3b2ed4c0008` and the two rollout traces above were queried.
+All8 captures/132 events were complete: candidate body bytes2,756,975 and
+public body bytes16,286. The verifier checked trusted source/topic provenance,
+each body's SHA256 and length, sequence continuity, end markers and zero drops.
+Capture IDs, event counts and body-byte totals exactly matched the local
+pre-cutover/public evidence. Only non-secret summaries were added to rollout
+evidence; temporary query credentials were removed after verification and never sent to the
+relay. This verifies these traces' central archive, not backlog drainage.
+No central archival service changed. The historical independent-second-copy
+limitation remains.
 
 ## Backup, rollback and cleanup
 
