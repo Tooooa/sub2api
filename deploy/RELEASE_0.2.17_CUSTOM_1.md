@@ -94,6 +94,12 @@ relay. This verifies these traces' central archive, not backlog drainage.
 No central archival service changed. The historical independent-second-copy
 limitation remains.
 
+The subsequent [backlog repair and complete snapshot audit](AI_LOG_BACKLOG_20261020.md)
+resolved the source throughput/reporting issue and verified drainage plus new
+background-delivered captures. It also disclosed pre-existing capture drops
+in the old blue container; the release tests above do not establish global
+historical zero loss.
+
 ## Backup, rollback and cleanup
 
 Private server backup:
