@@ -4,6 +4,32 @@ The gateway writes private WAL segments; `shipper.py` uploads them over verified
 SASL/SCRAM TLS. Gateway changes are opt-in. See
 [`deploy/AI_LOGGING.md`](../../deploy/AI_LOGGING.md) for source deployment.
 
+## Source delivery and backlog
+
+The source sends sorted WAL files in batches of at most32 files and a target
+8MiB of input (a larger single file runs alone). One Kafka flush covers each
+batch, allowing brokers/partitions to progress together across high-latency
+links. Per-capture Kafka keys, enqueue order, TLS, `acks=all` and producer
+idempotence are preserved. The producer queue remains bounded at32MiB.
+
+Every file stays exclusively locked through validation, send and acknowledgement.
+Active writers are skipped. A malformed file is retained and reported before
+any of its records are enqueued; other valid files can progress. No queued file
+is unlinked unless every record in its batch receives a successful callback and
+the producer queue drains. Timeout, partial acknowledgement, enqueue errors and
+process interruption retain recoverable WAL. Retry reuses original event IDs;
+central readers must deduplicate them. A path replaced during delivery is never
+deleted in place of the acknowledged inode.
+
+`shipper-status.json` refreshes independently every30 seconds, including during
+a slow Kafka flush. `pending_bytes`, `pending_files` and `oldest_age_seconds`
+describe files currently present, rather than files already delivered earlier
+in a scan. `delivered_events` is a process-lifetime count and resets on restart;
+`failures` reflects the current scan. A fresh zero queue does not establish
+central HDD archival by itself: verify receipts and replay relevant captures.
+Preserve the source WAL and credentials during restart/rollback; never clear the
+spool to resolve backlog.
+
 The storage path is:
 
 ```

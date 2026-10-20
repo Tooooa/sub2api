@@ -23,5 +23,5 @@ Other upstream feature documents in this directory retain their original scope.
 Production state is established by readback and release records, not a version
 number copied to a branch by a release workflow.
 
-No active upgrade plan remains. Check the current release record before
-reusing historical runtime observations.
+Current work: [preserve and drain source WAL](../plans/20261020-shipper-backlog.md).
+Check the current release record before reusing historical runtime observations.
