@@ -3,7 +3,8 @@
 The verified production baseline is `0.2.15-custom.1` / `f4d0a1527` on the
 Los Angeles relay. The current candidate is `0.2.17-custom.1`, merging the
 original Wei-Shaw `v0.2.17` tag while preserving the four documented operational
-extensions. The next move is complete CI, CI-built linux/amd64 image verification,
+extensions. The next move is restoring the fork Actions workflow gate (GitHub has paused
+it due to usage scale), then complete CI, CI-built linux/amd64 image verification,
 isolated migration/old-image compatibility checks, then a backed-up blue-green
 rollout authorized by the user. No builds may run on the user's Mac or relay.
 
