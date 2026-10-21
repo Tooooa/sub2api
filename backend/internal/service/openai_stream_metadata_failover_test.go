@@ -232,3 +232,22 @@ func TestAnthropicPreambleDoesNotAllowReplayAfterContent(t *testing.T) {
 		})
 	}
 }
+
+func TestAnthropicFailedFirstWriteDoesNotReplayAfterClientDisconnect(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := &OpenAIGatewayService{cfg: &config.Config{Gateway: config.GatewayConfig{MaxLineSize: defaultMaxLineSize}}}
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	c.Writer = &passthroughFlushTestWriter{ResponseWriter: c.Writer, recorder: rec, failAfterWrites: 0}
+	body := "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_disconnect\",\"model\":\"model\"}}\n\n" +
+		"data: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"delta\":\"partial\"}\n\n" +
+		"data: {\"type\":\"response.failed\",\"response\":{\"error\":{\"code\":\"server_is_overloaded\",\"message\":\"Our servers are currently overloaded. Please try again later.\"}}}\n\n"
+	resp := &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body))}
+	result, err := svc.handleAnthropicStreamingResponse(resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth}, "model", "model", "model", time.Now())
+	require.Error(t, err)
+	var failoverErr *UpstreamFailoverError
+	require.False(t, errors.As(err, &failoverErr), "a failed client write must not launch another paid attempt")
+	require.True(t, result.ClientDisconnect)
+	require.Empty(t, rec.Body.String())
+}
