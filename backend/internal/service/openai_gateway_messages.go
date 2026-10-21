@@ -947,6 +947,7 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 ) (*OpenAIForwardResult, error) {
 	requestID := resp.Header.Get("x-request-id")
 	writeStreamHeaders := s.newStreamHeaderWriter(c, resp.Header)
+	writeKeepaliveHeaders := s.newStreamHeaderWriter(c, nil)
 
 	state := apicompat.NewResponsesEventToAnthropicState()
 	state.Model = originalModel
@@ -956,6 +957,14 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 	firstChunk := true
 	clientDisconnected := false
 	clientOutputStarted := false
+	// The converter emits message_start for response.created and empty block
+	// starts before content. Keep these attempt-local until semantic output.
+	preamble := newDefaultOpenAIFirstOutputStage()
+	defer func() {
+		if err := preamble.Close(); err != nil {
+			logger.L().Warn("openai messages stream: staging cleanup failed", zap.Error(err))
+		}
+	}()
 	var streamFailoverErr error
 	var streamNonFailoverErr error
 	terminalEventType := ""
@@ -1080,7 +1089,7 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 				if isBareErrorEvent {
 					shouldFailover = openAIStreamErrorEventShouldFailover(payloadBytes, message)
 				}
-				if !clientOutputStarted && shouldFailover {
+				if !clientDisconnected && !clientOutputStarted && shouldFailover {
 					streamFailoverErr = s.newOpenAIStreamFailoverErrorWithModel(c, account, false, requestID, payloadBytes, message, upstreamModel, resp.Header)
 					return true
 				}
@@ -1098,7 +1107,7 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 					MarkResponseCommitted(c)
 				}
 				if !clientDisconnected {
-					if !clientOutputStarted {
+					if !clientOutputStarted && !c.Writer.Written() {
 						writeAnthropicError(c, errStatus, errType, errMsg)
 						clientOutputStarted = true
 					} else {
@@ -1125,6 +1134,13 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 					)
 					continue
 				}
+				if !clientOutputStarted {
+					if _, err := preamble.WriteString(sse); err != nil {
+						streamFailoverErr = s.newOpenAIStreamFailoverError(c, account, false, requestID, nil, "OpenAI messages first-output staging failed")
+						return true
+					}
+					continue
+				}
 				writeStreamHeaders()
 				if _, err := fmt.Fprint(c.Writer, sse); err != nil {
 					clientDisconnected = true
@@ -1137,7 +1153,18 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 			}
 		}
 		if len(events) > 0 && !clientDisconnected {
-			c.Writer.Flush()
+			if !clientOutputStarted && openAIStreamDataStartsClientOutput(payload, eventType) {
+				writeStreamHeaders()
+				if err := preamble.CommitTo(c.Writer); err != nil {
+					clientDisconnected = true
+					logger.L().Info("openai messages stream: client disconnected during first output", zap.String("request_id", requestID))
+				} else {
+					clientOutputStarted = true
+				}
+			}
+			if clientOutputStarted && !clientDisconnected {
+				c.Writer.Flush()
+			}
 		}
 		return isTerminalEvent
 	}
@@ -1157,6 +1184,13 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 					continue
 				}
 				writeStreamHeaders()
+				if !clientOutputStarted {
+					if err := preamble.CommitTo(c.Writer); err != nil {
+						clientDisconnected = true
+						break
+					}
+					clientOutputStarted = true
+				}
 				if _, err := fmt.Fprint(c.Writer, sse); err != nil {
 					clientDisconnected = true
 					logger.L().Info("openai messages stream: client disconnected during final flush",
@@ -1335,8 +1369,10 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 				continue
 			}
 			// Send Anthropic-format ping event
-			writeStreamHeaders()
-			if _, err := fmt.Fprint(c.Writer, "event: ping\ndata: {\"type\":\"ping\"}\n\n"); err != nil {
+			writeKeepaliveHeaders()
+			written, err := fmt.Fprint(c.Writer, "event: ping\ndata: {\"type\":\"ping\"}\n\n")
+			recordOpenAIStreamKeepaliveBytes(c, written)
+			if err != nil {
 				// Client disconnected
 				logger.L().Info("openai messages stream: client disconnected during keepalive",
 					zap.String("request_id", requestID),
@@ -1344,7 +1380,6 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 				clientDisconnected = true
 				continue
 			}
-			clientOutputStarted = true
 			c.Writer.Flush()
 		}
 	}

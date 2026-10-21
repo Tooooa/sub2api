@@ -1087,7 +1087,10 @@ func openAIStreamClientOutputStarted(c *gin.Context, localStarted bool) bool {
 // Lifecycle metadata and transport heartbeats are not model output.
 func openAIStreamEventIsMetadata(eventType string) bool {
 	switch strings.TrimSpace(eventType) {
-	case "response.created", "response.in_progress", "keepalive":
+	case "response.created", "response.in_progress", "response.metadata", "keepalive":
+		// response.metadata carries attempt bookkeeping, including on streams
+		// rejected for capacity before any output. Keep it staged so the
+		// following error can retry without exposing the failed attempt.
 		return true
 	default:
 		return false

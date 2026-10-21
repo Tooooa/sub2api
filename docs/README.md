@@ -1,15 +1,17 @@
 # Sub2API deployment documentation
 
-The verified production baseline is `0.2.17-custom.1` / `ae731617f` on the
-Los Angeles relay, deployed2026-10-20 from original Wei-Shaw `v0.2.17` while
-preserving the four documented operational extensions. CI, image verification,
-isolated migration/old-image compatibility, backed-up blue-green deployment
-and public checks passed. No builds may run on the user's Mac or relay.
+The verified production baseline is `0.2.17-custom.2` / `a53e8b7ad` on the
+Los Angeles relay, deployed2026-10-21 to correct Responses metadata disabling
+pre-output capacity retry. It preserves the four documented operational
+extensions from the0.2.17 base. Full CI, security checks, image verification,
+backed-up blue-green deployment and real public SSE checks passed. No builds
+may run on the user's Mac or relay.
 
 | Record | State | Read when | Path |
 |---|---|---|---|
 | Maintained customizations | Deployed | Integrating upstream or identifying local behavior | [CUSTOMIZATIONS.md](CUSTOMIZATIONS.md) |
 | 0.2.17 custom release evidence | Verified, with logging limits recorded | Identifying the current image, tests, backups and rollback | [Release record](../deploy/RELEASE_0.2.17_CUSTOM_1.md) |
+| Streaming capacity failover | Deployed and verified | Investigating metadata mistaken for output, automatic retries and current rollback | [Failover repair](../deploy/STREAMING_CAPACITY_FAILOVER_20261021.md) |
 | Source WAL backlog repair | Deployed and archive-verified; historical loss disclosed | Investigating queue metrics, throughput, backup and recovery | [Backlog repair](../deploy/AI_LOG_BACKLOG_20261020.md) |
 | Los Angeles logging rollout | Deployed | Checking runtime and rollback | [AI_LOG_LOS_ANGELES.md](../deploy/AI_LOG_LOS_ANGELES.md) |
 | 0.2.15 custom release evidence | Historical rollback baseline | Identifying the retained blue image | [Release record](../deploy/RELEASE_0.2.15_CUSTOM_1.md) |
