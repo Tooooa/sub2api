@@ -145,3 +145,89 @@ func TestOpenAIWSHTTPBridgeMetadataOverloadCanFailOver(t *testing.T) {
 	require.True(t, failoverErr.RequestScopedTransient)
 	require.Empty(t, writes)
 }
+
+func TestAnthropicPreambleOverloadCanRetryAnotherAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, keepalive := range []bool{false, true} {
+		t.Run(map[bool]string{false: "preamble", true: "preamble_and_ping"}[keepalive], func(t *testing.T) {
+			cfg := &config.Config{Gateway: config.GatewayConfig{MaxLineSize: defaultMaxLineSize}}
+			if keepalive {
+				cfg.Gateway.StreamKeepaliveInterval = 1
+			}
+			svc := &OpenAIGatewayService{cfg: cfg}
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+			preamble := "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_failed_attempt\",\"model\":\"model\"}}\n\n" +
+				"data: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[]}}\n\n" +
+				"data: {\"type\":\"response.metadata\"}\n\n"
+			failure := "data: {\"type\":\"error\",\"error\":{\"code\":\"server_is_overloaded\",\"message\":\"Our servers are currently overloaded. Please try again later.\"}}\n\n"
+			var body io.ReadCloser = io.NopCloser(strings.NewReader(preamble + failure))
+			if keepalive {
+				reader, writer := io.Pipe()
+				defer reader.Close()
+				body = reader
+				go func() {
+					defer writer.Close()
+					_, _ = io.WriteString(writer, preamble)
+					time.Sleep(1200 * time.Millisecond)
+					_, _ = io.WriteString(writer, failure)
+				}()
+			}
+			resp := &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: body}
+			account := &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+			_, err := svc.handleAnthropicStreamingResponse(resp, c, account, "model", "model", "model", time.Now())
+			var failoverErr *UpstreamFailoverError
+			require.ErrorAs(t, err, &failoverErr)
+			require.True(t, failoverErr.RequestScopedTransient)
+			require.Equal(t, -1, OpenAICompactKeepaliveAdjustedWrittenSize(c), "handler must still allow account failover after ping")
+			if keepalive {
+				require.Contains(t, rec.Body.String(), "event: ping")
+			} else {
+				require.False(t, c.Writer.Written())
+			}
+			require.NotContains(t, rec.Body.String(), "message_start")
+			require.NotContains(t, rec.Body.String(), "resp_failed_attempt")
+			cfg.Gateway.StreamKeepaliveInterval = 0
+			success := "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_success\",\"model\":\"model\"}}\n\n" +
+				"data: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"delta\":\"recovered output\"}\n\n" +
+				"data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_success\",\"status\":\"completed\",\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}}\n\n"
+			resp = &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(success))}
+			account.ID = 2
+			_, err = svc.handleAnthropicStreamingResponse(resp, c, account, "model", "model", "model", time.Now())
+			require.NoError(t, err)
+			require.Contains(t, rec.Body.String(), "recovered output")
+			require.Equal(t, 1, strings.Count(rec.Body.String(), "event: message_start"))
+			require.Equal(t, 1, strings.Count(rec.Body.String(), "event: message_stop"))
+			require.NotContains(t, rec.Body.String(), "resp_failed_attempt")
+			require.NotContains(t, rec.Body.String(), "overloaded")
+		})
+	}
+}
+
+func TestAnthropicPreambleDoesNotAllowReplayAfterContent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, output := range []string{
+		`{"type":"response.output_text.delta","output_index":0,"content_index":0,"delta":"partial text"}`,
+		`{"type":"response.reasoning_summary_text.delta","output_index":0,"summary_index":0,"delta":"partial reasoning"}`,
+		`{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"get_temperature","arguments":"{\"city\":\"Taipei\"}"}}`,
+	} {
+		t.Run(output, func(t *testing.T) {
+			svc := &OpenAIGatewayService{cfg: &config.Config{Gateway: config.GatewayConfig{MaxLineSize: defaultMaxLineSize}}}
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+			body := "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_partial\",\"model\":\"model\"}}\n\n" +
+				"data: " + output + "\n\n" +
+				"data: {\"type\":\"response.failed\",\"response\":{\"error\":{\"code\":\"server_is_overloaded\",\"message\":\"Our servers are currently overloaded. Please try again later.\"}}}\n\n"
+			resp := &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body))}
+			_, err := svc.handleAnthropicStreamingResponse(resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth}, "model", "model", "model", time.Now())
+			require.Error(t, err)
+			var failoverErr *UpstreamFailoverError
+			require.False(t, errors.As(err, &failoverErr))
+			require.Contains(t, rec.Body.String(), "event: content_block_start")
+			require.Equal(t, 1, strings.Count(rec.Body.String(), "event: error"))
+			require.NotContains(t, rec.Body.String(), "event: message_stop")
+		})
+	}
+}
