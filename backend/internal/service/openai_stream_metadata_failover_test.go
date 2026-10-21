@@ -162,13 +162,13 @@ func TestAnthropicPreambleOverloadCanRetryAnotherAccount(t *testing.T) {
 				"data: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[]}}\n\n" +
 				"data: {\"type\":\"response.metadata\"}\n\n"
 			failure := "data: {\"type\":\"error\",\"error\":{\"code\":\"server_is_overloaded\",\"message\":\"Our servers are currently overloaded. Please try again later.\"}}\n\n"
-			var body io.ReadCloser = io.NopCloser(strings.NewReader(preamble + failure))
+			body := io.NopCloser(strings.NewReader(preamble + failure))
 			if keepalive {
 				reader, writer := io.Pipe()
-				defer reader.Close()
+				defer func() { _ = reader.Close() }()
 				body = reader
 				go func() {
-					defer writer.Close()
+					defer func() { _ = writer.Close() }()
 					_, _ = io.WriteString(writer, preamble)
 					time.Sleep(1200 * time.Millisecond)
 					_, _ = io.WriteString(writer, failure)
