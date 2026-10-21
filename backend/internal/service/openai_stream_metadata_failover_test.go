@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -14,6 +15,22 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+type anthropicPingNoticeWriter struct {
+	gin.ResponseWriter
+	ping chan struct{}
+}
+
+func (w *anthropicPingNoticeWriter) Write(data []byte) (int, error) {
+	n, err := w.ResponseWriter.Write(data)
+	if n > 0 && bytes.Contains(data[:n], []byte("event: ping")) {
+		select {
+		case w.ping <- struct{}{}:
+		default:
+		}
+	}
+	return n, err
+}
 
 func TestOpenAIResponseMetadataDoesNotStartOutput(t *testing.T) {
 	data := `{"type":"response.metadata","sequence_number":2,"metadata":{"request_id":"attempt-metadata"}}`
@@ -167,10 +184,15 @@ func TestAnthropicPreambleOverloadCanRetryAnotherAccount(t *testing.T) {
 				reader, writer := io.Pipe()
 				defer func() { _ = reader.Close() }()
 				body = reader
+				ping := make(chan struct{}, 1)
+				c.Writer = &anthropicPingNoticeWriter{ResponseWriter: c.Writer, ping: ping}
 				go func() {
 					defer func() { _ = writer.Close() }()
 					_, _ = io.WriteString(writer, preamble)
-					time.Sleep(1200 * time.Millisecond)
+					select {
+					case <-ping:
+					case <-time.After(5 * time.Second):
+					}
 					_, _ = io.WriteString(writer, failure)
 				}()
 			}
