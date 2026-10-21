@@ -209,7 +209,8 @@ func TestAnthropicPreambleDoesNotAllowReplayAfterContent(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, output := range []string{
 		`{"type":"response.output_text.delta","output_index":0,"content_index":0,"delta":"partial text"}`,
-		`{"type":"response.reasoning_summary_text.delta","output_index":0,"summary_index":0,"delta":"partial reasoning"}`,
+		`{"type":"response.output_item.added","output_index":0,"item":{"id":"rs_1","type":"reasoning","summary":[]}}` + "\n\ndata: " +
+			`{"type":"response.reasoning_summary_text.delta","output_index":0,"summary_index":0,"delta":"partial reasoning"}`,
 		`{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"get_temperature","arguments":"{\"city\":\"Taipei\"}"}}`,
 	} {
 		t.Run(output, func(t *testing.T) {
