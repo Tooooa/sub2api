@@ -1,16 +1,16 @@
 # Sub2API deployment documentation
 
-The verified production baseline is `0.2.17-custom.2` / `a53e8b7ad` on the
-Los Angeles relay, deployed2026-10-21 to correct Responses metadata disabling
-pre-output capacity retry. It preserves the four documented operational
-extensions from the0.2.17 base. Full CI, security checks, image verification,
-backed-up blue-green deployment and real public SSE checks passed. No builds
-may run on the user's Mac or relay.
+The verified production baseline is `0.2.17-custom.3` / `aeacc96dd` on the
+Los Angeles relay, deployed on 2026-10-21. Responses lifecycle metadata and
+Messages preambles/pings no longer suppress capacity retry before actual
+output. It preserves the four operational extensions from the 0.2.17 base.
+Full CI, security scans, image verification and eight real candidate/public
+checks passed. Builds are prohibited on the user's Mac and production relay.
 
 | Record | State | Read when | Path |
 |---|---|---|---|
 | Maintained customizations | Deployed | Integrating upstream or identifying local behavior | [CUSTOMIZATIONS.md](CUSTOMIZATIONS.md) |
-| 0.2.17 custom release evidence | Verified, with logging limits recorded | Identifying the current image, tests, backups and rollback | [Release record](../deploy/RELEASE_0.2.17_CUSTOM_1.md) |
+| 0.2.17 custom release evidence | Historical base, with logging limits recorded | Identifying the upstream merge and original custom baseline | [Release record](../deploy/RELEASE_0.2.17_CUSTOM_1.md) |
 | Streaming capacity failover | Deployed and verified | Investigating metadata mistaken for output, automatic retries and current rollback | [Failover repair](../deploy/STREAMING_CAPACITY_FAILOVER_20261021.md) |
 | Source WAL backlog repair | Deployed and archive-verified; historical loss disclosed | Investigating queue metrics, throughput, backup and recovery | [Backlog repair](../deploy/AI_LOG_BACKLOG_20261020.md) |
 | Los Angeles logging rollout | Deployed | Checking runtime and rollback | [AI_LOG_LOS_ANGELES.md](../deploy/AI_LOG_LOS_ANGELES.md) |

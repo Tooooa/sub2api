@@ -1,129 +1,142 @@
-# Responses metadata and capacity failover
+# Streaming capacity failover — 2026-10-21
+
+## Verified production state
+
+`0.2.17-custom.3` is active on the Los Angeles production server. Source
+`aeacc96dd752d69293c23bae160e90861254ab68` was built by the
+[branch image workflow](https://github.com/Tooooa/sub2api/actions/runs/39536973864)
+and merged into main through [PR 8](https://github.com/Tooooa/sub2api/pull/8).
+The workflow's legacy retry-10 name does not change runtime retry limits.
+
+- Platform: `linux/amd64`; no build ran on the Mac or production server.
+- Immutable OCI manifest / Docker 29 image ID:
+  `sha256:79b002ff708f2148e38fe1802146178539064d77ccad99249550f28a73aa6969`.
+- OCI config digest:
+  `sha256:aa71fb73512eb4711e5f440f3341bedf1f87dd722349c26630ed8d64640c2961`.
+- Local tag: `sub2api:0.2.17-custom.3-aeacc96dd`; loaded from the CI artifact,
+  not published as a GHCR release.
+- Active container: `sub2api-green`, `127.0.0.1:18081`.
+- App data: `/opt/sub2api/deploy/.blue-green/data-green-20261021031622`.
+- Caddy cutover: `2026-10-21T03:17:28Z` (11:17:28 Asia/Taipei).
+  Observation passed; state was written at 03:17:59Z and old blue drained
+  normally by 03:18:29Z, within the 300-second drain allowance.
 
 ## Fault and correction
 
-On2026-10-21, live production WAL showed seven complete overload attempts
-with this sequence and no model output:
+The server had normal CPU, memory and disk headroom. Capacity errors came from
+upstream. Seven complete production WAL attempts had this sequence:
 
 `response.created -> response.in_progress -> response.metadata -> error -> response.failed`
 
 All seven failed responses had `output: []`. The shared first-output classifier
-recognized created/in-progress/keepalive as metadata but treated
-`response.metadata` as semantic output. Native SSE committed its staged attempt;
-the following capacity error then logged
-`gateway.failover_suppressed_after_semantic_output` instead of returning an
-`UpstreamFailoverError`. This also affected passthrough SSE and the first-turn
-HTTP-to-WebSocket bridge because they share the classifier.
+omitted `response.metadata`, committed the staged attempt and suppressed
+failover after the subsequent overload error. Classifying it as lifecycle
+metadata restores existing bounded retry and account switching in native SSE,
+passthrough SSE and the first-turn HTTP-to-WebSocket bridge.
 
-The correction classifies `response.metadata` as lifecycle metadata. It remains
-buffered with the attempt until real output or a terminal event. Pre-output
-capacity failures use the existing bounded same-account/account-switch retry
-policy. A successful retry exposes only its own events. Real text and function
-arguments still commit the stream and prohibit replay; exhausted retries and
-failures after actual output can still reach the client.
+Inspection also confirmed a Messages compatibility defect. The Responses
+converter emitted an empty Anthropic `message_start` for `response.created`.
+That preamble and ping bytes were counted as output, including by the handler's
+raw-byte comparison. This diagnosis is based on code inspection; complete WAL
+sequences were not captured for the particular Messages failures.
+
+The Messages correction stages converted preambles with the existing bounded
+first-output stage, commits with real output, records heartbeat bytes separately
+and uses the shared heartbeat-adjusted handler guard. Pings use generic SSE
+headers. Exhaustion after pings returns an Anthropic SSE error. Client
+disconnects stop retries. Real text, thinking and tool output still prohibit
+replay, because retrying after visible output could duplicate content/actions.
+
+Before actual output, capacity errors can retry and switch accounts under the
+existing limits. Exhaustion of all available attempts and errors after actual
+output can still reach the client. Account settings and retry limits did not
+change.
 
 ## Verification
 
-The author implements and verifies this change. Regression tests reproduce the
-observed sequence, including a64KiB preamble, for native/passthrough SSE and the
-first-turn HTTP-to-WebSocket bridge. They verify that the failed attempt writes
-no client bytes, another account can finish without leaked failure events, and
-actual text/tool output still prevents replay. Metadata also does not start
-semantic TTFT. Unknown event types retain conservative commit behavior.
-
-The tests-first commit90645ed2e failed all three affected-path regressions in
+The author implemented and verified the change. Tests-first commit `90645ed2e`
+failed all three metadata regressions in
 [baseline CI](https://github.com/Tooooa/sub2api/actions/runs/39532443440),
-reproducing the production suppression warning. The correction4a2805b0c and
-patch-version commita53e8b7ad passed all nine jobs in
-[branch CI](https://github.com/Tooooa/sub2api/actions/runs/39532988712), including
-full backend unit/integration suites, frontend, lint and operational extensions.
-[Security scans](https://github.com/Tooooa/sub2api/actions/runs/39532988708)
-also passed. [PR8](https://github.com/Tooooa/sub2api/pull/8) contains the change.
+reproducing the production suppression warning. Final
+[full CI](https://github.com/Tooooa/sub2api/actions/runs/39536170582) and
+[security scans](https://github.com/Tooooa/sub2api/actions/runs/39536170523)
+passed for `aeacc96dd`, including backend unit/integration suites, frontend,
+lint and operational extensions.
 
-## Release checks
+Regressions cover metadata-only failure including a 64 KiB preamble, native
+and passthrough SSE, HTTP-to-WebSocket bridging, Messages preamble/ping followed
+by another account's success without failed-attempt leakage, real
+text/thinking/tool replay boundaries, client disconnects and semantic TTFT.
+Unknown Responses event types retain conservative commit behavior. The ping
+test synchronizes on an actual write rather than a fixed timer delay.
 
-The initial security scan found newly reported patch requirements in the
-existing baseline: Go standard-library `GO-2026-6809` requires Go1.27.3, and
-`follow-redirects`1.16.0 requires1.16.1 for
+The downloaded OCI index, manifest/config and rootfs were checked against the
+loaded image, including platform and complete image Config. The binary reports
+`0.2.17-custom.3`; its default commit label is `docker`, so source provenance is
+established by the workflow head SHA and verified artifact, not that label.
+
+Before cutover, five real checks passed: GPT-6.1-sol and GPT-6-astra Responses
+text SSE, a forced Sol function call, and GPT-5.6-sol Messages text and forced
+tool calls. After cutover, public Sol/Astra Responses and Messages text SSE
+passed. Messages streams had one `message_start`, one `message_stop` and no
+error events. All temporary test keys were deleted.
+
+Final readback: local/public health 200, zero container restarts/OOMs, account
+status/scheduling/priority/concurrency equal to the pre-cutover snapshot, zero
+new database migrations, preserved shared AI-log WAL mount, active shipper and
+active automatic recharge timer. Evidence is retained privately with backups.
+
+## First-stage rollout and live recovery
+
+The Responses correction first deployed as `0.2.17-custom.2`, source
+`a53e8b7ad22174ab696b5a75a3b7ad669e7477ea`, through
+[CI](https://github.com/Tooooa/sub2api/actions/runs/39532988712),
+[security](https://github.com/Tooooa/sub2api/actions/runs/39532988708) and
+[image build](https://github.com/Tooooa/sub2api/actions/runs/39533029426).
+Its blue-slot cutover occurred at `2026-10-21T02:39:40Z`; three candidate and
+two public Responses checks passed.
+
+Live request `298863da-e24e-471e-afea-614b2799226e` retried account 17 three
+times after 503, switched to account 25, completed, and recorded
+`Recovered upstream error 503` with status 200. Four other recovered overload
+records were observed in the initial sample. This demonstrates restoration of
+retry for these requests without promising success when every account fails.
+The Messages follow-up above is included in the final custom.3 rollout.
+
+Release security checks required patch updates in the existing baseline:
+Go standard-library `GO-2026-6809` requires Go 1.27.3; follow-redirects 1.16.0
+requires 1.16.1 for
 [GHSA-q3jh-wrc6-jgq8](https://github.com/advisories/GHSA-q3jh-wrc6-jgq8) and
 [GHSA-8r9p-f939-6h3c](https://github.com/advisories/GHSA-8r9p-f939-6h3c).
-The release uses those patch versions; the official Go image index was checked
-for linux/amd64 before pinning its digest.
-
-## Image and deployment
-
-[Branch image build](https://github.com/Tooooa/sub2api/actions/runs/39533029426)
-compiled sourcea53e8b7ad22174ab696b5a75a3b7ad669e7477ea on GitHub Actions.
-The workflow's legacy retry-10 name does not change runtime retry limits.
-Artifact12316810046 contains the full prebuilt linux/amd64 image. Its OCI
-manifest, configuration and rootfs were checked against the loaded image;
-the binary reports0.2.17-custom.2. No build ran on the Mac or production.
-
-- Immutable loaded manifest/image ID:
-  `sha256:6b64a456a71594d962a3ae52c939d8fe68e18398167def31d2fc340d4a013841`.
-- OCI config digest:
-  `sha256:1e52897923c23772bf197cb684605b3792b9e46bc12d0e6b0dbc5802e4a194cf`.
-- Local production tag:`sub2api:0.2.17-custom.2-a53e8b7ad`. This hotfix image
-  was loaded from the CI artifact; it was not published as a GHCR release.
-- Candidate:`sub2api-blue`,127.0.0.1:8080, data directory
-  `/opt/sub2api/deploy/.blue-green/data-blue-20261021023926`.
-- Caddy cutover:2026-10-21T02:39:40Z (10:39:40 Asia/Taipei). The30-second
-  observation passed; old green stopped normally at02:40:37Z with a maximum
-  300-second drain allowance.
-
-Before cutover, real GPT-6.1-sol and GPT-6-astra Responses SSE requests and a
-forced GPT-6.1-sol function call completed without error events. Public Sol
-and Astra SSE then passed. Both temporary keys were deleted. Local/public
-health returned200, the new container had zero restarts/OOMs, and account
-status/scheduling/priority/concurrency matched the backup exactly. There were
-no new database migrations. The shared AI-log WAL mount, shipper and automatic
-recharge timer remained active.
-
-Live traffic confirmed the retry branch was restored: request
-`298863da-e24e-471e-afea-614b2799226e` retried account17 three times after503,
-switched accounts, and recorded `Recovered upstream error 503` with status200.
-Four other recovered overload records were observed in the first post-cutover
-sample. This demonstrates recovery for these requests; all-account exhaustion
-and failures after actual output remain possible.
+The release uses those patches and a pinned official Go image with amd64 support.
 
 ## Backup and rollback
 
 Private server backup:
-`/root/backups/sub2api-streaming-capacity-20261021T022628Z/`.
-It contains a326,125,748-byte PostgreSQL archive (archive index validated),
-app data, environment, Caddyfile, active state, container/image metadata,
-deployment script, shipper configuration, business snapshots, CI/image identity
-and smoke/recovery summaries. Configuration and database backups contain
-secrets and must not be published.
+`/root/backups/sub2api-streaming-capacity-20261021T022628Z/` and `followup/`.
+The initial PostgreSQL archive is 326,125,748 bytes and the follow-up archive
+is 326,292,983 bytes; both archive indexes were validated. Backups also retain
+app data, environment, Caddy, active state, container/image metadata, deploy
+script, shipper configuration, account snapshots, CI/image identity, deployment
+logs and smoke/recovery summaries. They contain secrets and must stay private.
 
-Old0.2.17-custom.1 remains stopped as`sub2api-green` on18081, image ending
-`36b8af5f75d6f2138af11fe2fa3e7c0633ebcb4d31c082fd7eeed2634341c648`.
-To roll back, start/health-check green, restore the previous site's Caddy route
-and matching active state, reload Caddy, then drain blue. No schema restoration
-is required for this application-only hotfix. Caddy backup:
+Direct rollback is the stopped `sub2api-blue` on 8080, custom.2 image:
+`sha256:6b64a456a71594d962a3ae52c939d8fe68e18398167def31d2fc340d4a013841`,
+OCI config `sha256:1e52897923c23772bf197cb684605b3792b9e46bc12d0e6b0dbc5802e4a194cf`,
+local tag `sub2api:0.2.17-custom.2-a53e8b7ad`, with app data
+`/opt/sub2api/deploy/.blue-green/data-blue-20261021023926`.
+Start and health-check blue, restore the previous site's Caddy route and
+matching blue active state from the follow-up backup, reload Caddy, then drain
+green. Caddy backup: `/opt/sub2api-https/Caddyfile.backup.20261021031728`.
+No schema restoration is required for this application-only hotfix.
+
+Earlier rollback containers remain stopped as
+`sub2api-green-pre-messages-20261021` (custom.1, image `36b8af5f…`) and
+`sub2api-blue-pre-metadata-20261021` (0.2.15). The initial-stage Caddy backup is
 `/opt/sub2api-https/Caddyfile.backup.20261021023939`.
-The previous stopped blue0.2.15 image/container was retained under
-`sub2api-blue-pre-metadata-20261021` before reusing the blue slot.
 
-The root operator document was backed up to the external-disk task directory
-before updating. Task-owned test credentials and transfer files are cleaned
-after verification; production backups and rollback containers are retained.
-
-## Messages compatibility follow-up
-
-Post-cutover checks exposed the same boundary problem in `/v1/messages`: the
-Responses converter emitted an empty Anthropic `message_start` immediately
-for `response.created`. That preamble and keepalive pings set the local output
-flag before any content. The Messages handler also compared raw byte counts,
-so a ping alone prevented account retry.
-
-The follow-up stages converted preambles with the existing bounded first-output
-stage, commits them with real output, records ping bytes as transport-only,
-and uses the handler's shared heartbeat-adjusted replay guard. Pings write
-only generic SSE headers. Exhaustion after pings retains an Anthropic SSE
-error; text, thinking and tool output still prohibit replay. Regression tests
-cover preamble-only and ping-only failure followed by another account's
-success, plus the no-replay boundary for actual content.
-
-Version0.2.17-custom.3 is under verification; production remains on the
-verified0.2.17-custom.2 image above until the follow-up checks pass.
+The root operator document's pre-edit copy is retained on the external disk at
+`/Volumes/MacData/09_tmp/streaming-capacity-failover/服务器运维说明-更新前.md`.
+Task-owned test keys, local transfer archives, temporary helper scripts and the
+isolated worktree are removed after final verification; production backups,
+rollback containers and sanitized verification records are retained.
