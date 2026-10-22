@@ -1,8 +1,12 @@
 # Streaming capacity failover — 2026-10-21
 
-## Verified production state
+> Historical custom.3 rollout. Production has moved to custom.4; see the
+> [current fast-failover record](FAST_CAPACITY_FAILOVER_20261023.md) for the
+> active image, capacity retry policy and rollback. The output guards below remain.
 
-`0.2.17-custom.3` is active on the Los Angeles production server. Source
+## Verified rollout state
+
+`0.2.17-custom.3` was deployed on the Los Angeles production server. Source
 `aeacc96dd752d69293c23bae160e90861254ab68` was built by the
 [branch image workflow](https://github.com/Tooooa/sub2api/actions/runs/39536973864)
 and merged into main through [PR 8](https://github.com/Tooooa/sub2api/pull/8).

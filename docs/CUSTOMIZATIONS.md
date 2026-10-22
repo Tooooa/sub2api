@@ -3,11 +3,14 @@
 The base 0.2.17-custom.1 release merged the original Wei-Shaw/sub2api tag
 `v0.2.17` (`060d0160417782cd962a0c7f460f6cd4565d4916`) into the production
 line based on `0.2.15-custom.1` (`f4d0a1527`). It preserves four operational
-extensions. The current `0.2.17-custom.3` hotfix preserves that base and corrects
-Responses metadata and Messages preambles/pings being mistaken for output
-before capacity retry. Actual content and client disconnects still prevent
-replay. Release checks also require Go 1.27.3 and follow-redirects 1.16.1. See the
-[verified hotfix record](../deploy/STREAMING_CAPACITY_FAILOVER_20261021.md).
+extensions. The current `0.2.17-custom.4` hotfix retains the Responses metadata
+and Messages preamble/ping replay guards from custom.3 and sends recognized
+capacity failures directly to another account. Actual content and client
+disconnects still prevent replay; ordinary OAuth 429 and other retry policies
+remain unchanged. The capacity policy is a documented release exception to
+upstream behavior. Release checks retain Go 1.27.3 and follow-redirects 1.16.1.
+See the [verified fast-failover record](../deploy/FAST_CAPACITY_FAILOVER_20261023.md)
+and [earlier output-guard repair](../deploy/STREAMING_CAPACITY_FAILOVER_20261021.md).
 The four operational extensions are:
 
 1. **Blue-green deployment**
@@ -31,7 +34,7 @@ The four operational extensions are:
      [Los Angeles logging rollout](../deploy/AI_LOG_LOS_ANGELES.md)
 
 Everything else should continue to follow upstream. In particular, image model
-routing, model defaults, retry policy, migrations, API behavior, and normal CI
+routing, model defaults, generic retry limits, migrations, API behavior, and normal CI
 workflows are upstream-owned. The `0.2.17-custom.1` release retains the legacy
 downstream backend fixes and local tooling inherited through the deployed
 `0.2.13-custom.1` code line. They are retained for this rollout to
