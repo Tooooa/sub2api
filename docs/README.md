@@ -11,6 +11,7 @@ checks passed. Builds are prohibited on the user's Mac and production relay.
 |---|---|---|---|
 | Maintained customizations | Deployed | Integrating upstream or identifying local behavior | [CUSTOMIZATIONS.md](CUSTOMIZATIONS.md) |
 | 0.2.17 custom release evidence | Historical base, with logging limits recorded | Identifying the upstream merge and original custom baseline | [Release record](../deploy/RELEASE_0.2.17_CUSTOM_1.md) |
+| Faster capacity account switching | Candidate, verification pending | Reducing pre-output overload latency | [Fast failover](../deploy/FAST_CAPACITY_FAILOVER_20261023.md) |
 | Streaming capacity failover | Deployed and verified | Investigating metadata mistaken for output, automatic retries and current rollback | [Failover repair](../deploy/STREAMING_CAPACITY_FAILOVER_20261021.md) |
 | Source WAL backlog repair | Deployed and archive-verified; historical loss disclosed | Investigating queue metrics, throughput, backup and recovery | [Backlog repair](../deploy/AI_LOG_BACKLOG_20261020.md) |
 | Los Angeles logging rollout | Deployed | Checking runtime and rollback | [AI_LOG_LOS_ANGELES.md](../deploy/AI_LOG_LOS_ANGELES.md) |

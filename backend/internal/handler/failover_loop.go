@@ -80,6 +80,13 @@ func sameAccountRetryAllowed(failoverErr *service.UpstreamFailoverError, retryCo
 	if failoverErr == nil || !failoverErr.RetryableOnSameAccount {
 		return false
 	}
+	// Recognized OpenAI overloads should try another account immediately.
+	// Repeating a capacity rejection on this account adds failed upstream
+	// round trips and backoff before the user can receive the first output.
+	// Keep the request-scoped classification so this does not ban the account.
+	if failoverErr.IsOpenAICapacityShed() {
+		return false
+	}
 	if !sameAccountRetryDeadlineAllows(failoverErr) {
 		return false
 	}
