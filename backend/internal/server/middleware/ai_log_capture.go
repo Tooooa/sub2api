@@ -44,9 +44,10 @@ func aiLogCapture(sink ailog.Sink, source string) gin.HandlerFunc {
 			}
 		}
 		// Do not copy arbitrary headers, URL query strings, Authorization or
-		// cookies. Correlation values are bounded opaque identifiers.
+		// cookies. Correlation values are bounded opaque identifiers. Claude
+		// Code's own session id names the conversation, so it wins as trace.
 		trace := ""
-		for _, header := range []string{"X-Agent-Run-ID", "X-Trace-ID", "Thread-ID", "X-Session-ID", "Session_id", "Session-ID"} {
+		for _, header := range []string{"X-Claude-Code-Session-Id", "X-Agent-Run-ID", "X-Trace-ID", "Thread-ID", "X-Session-ID", "Session_id", "Session-ID"} {
 			if id := aiLogCorrelation(c.GetHeader(header)); id != "" {
 				metadata[strings.ToLower(header)] = id
 				if trace == "" {
@@ -54,7 +55,8 @@ func aiLogCapture(sink ailog.Sink, source string) gin.HandlerFunc {
 				}
 			}
 		}
-		for _, header := range []string{"Traceparent", "X-Agent-Span-ID", "X-Parent-Span-ID", "X-Codex-Window-ID", "X-OpenAI-Subagent"} {
+		for _, header := range []string{"Traceparent", "X-Agent-Span-ID", "X-Parent-Span-ID", "X-Codex-Window-ID", "X-OpenAI-Subagent",
+			"X-Claude-Code-Agent-Id", "X-Claude-Code-Parent-Agent-Id"} {
 			if id := aiLogCorrelation(c.GetHeader(header)); id != "" {
 				metadata[strings.ToLower(header)] = id
 			}
@@ -73,7 +75,8 @@ func aiLogCapture(sink ailog.Sink, source string) gin.HandlerFunc {
 			body = &aiLogBody{ReadCloser: c.Request.Body, stream: requestStream}
 			c.Request.Body = body
 		}
-		writer := &aiLogWriter{ResponseWriter: c.Writer, stream: ailog.NewStream(capture, "http.response.body")}
+		original := c.Writer
+		writer := &aiLogWriter{ResponseWriter: original, stream: ailog.NewStream(capture, "http.response.body")}
 		c.Writer = writer
 		completed := false
 		defer func() {
@@ -87,6 +90,10 @@ func aiLogCapture(sink ailog.Sink, source string) gin.HandlerFunc {
 				"handler_completed":     completed,
 				"client_canceled":       c.Request.Context().Err() != nil,
 			})
+			// Hand back the incoming writer. An outer wrapper (the ops error
+			// logger) restores and releases its pooled writer only if it sees its
+			// own, and the access log reads Status() after that release.
+			c.Writer = original
 		}()
 		c.Next()
 		completed = true

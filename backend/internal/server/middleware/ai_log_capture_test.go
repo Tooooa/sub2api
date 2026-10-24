@@ -82,3 +82,75 @@ func TestAILogCaptureMarksUnreadRequestBody(t *testing.T) {
 		t.Fatal("unread body reported complete")
 	}
 }
+
+func TestAILogCapturePrefersClaudeCodeSession(t *testing.T) {
+	s := &aiLogTestSink{}
+	router := gin.New()
+	router.Use(aiLogCapture(s, "test"))
+	router.POST("/v1/messages", func(c *gin.Context) { c.Status(http.StatusOK) })
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader("{}"))
+	req.Header.Set("X-Session-ID", "other")
+	req.Header.Set("X-Claude-Code-Session-Id", "0f8e6a52-5c1d-4a43-9d7e-1b2c3d4e5f60")
+	req.Header.Set("X-Claude-Code-Agent-Id", "agent-2")
+	req.Header.Set("X-Claude-Code-Parent-Agent-Id", "agent-1")
+	router.ServeHTTP(httptest.NewRecorder(), req)
+	start := s.events[0]
+	if start.TraceID != "0f8e6a52-5c1d-4a43-9d7e-1b2c3d4e5f60" || start.Metadata["x-claude-code-session-id"] != start.TraceID {
+		t.Fatal("Claude Code session not used as trace")
+	}
+	if start.Metadata["x-claude-code-agent-id"] != "agent-2" || start.Metadata["x-claude-code-parent-agent-id"] != "agent-1" || start.Metadata["x-session-id"] != "other" {
+		t.Fatal("agent correlation lost")
+	}
+	if start.Metadata["upstream_bodies"] != false {
+		t.Fatal("upstream body mode not recorded")
+	}
+}
+
+// aiLogPooledWriter stands in for the ops error logger's pooled capture
+// writer: once released it no longer reaches the real writer.
+type aiLogPooledWriter struct {
+	gin.ResponseWriter
+	released bool
+}
+
+func (w *aiLogPooledWriter) Status() int {
+	if w.released {
+		return 0
+	}
+	return w.ResponseWriter.Status()
+}
+
+func TestAILogCaptureRestoresWriterForOuterMiddleware(t *testing.T) {
+	for _, want := range []int{http.StatusOK, http.StatusForbidden} {
+		s := &aiLogTestSink{}
+		seen := -1
+		router := gin.New()
+		// Outermost: reads the status after the chain, like the access log.
+		router.Use(func(c *gin.Context) {
+			c.Next()
+			seen = c.Writer.Status()
+		})
+		// Restores only its own writer, then releases it, like the ops error logger.
+		router.Use(func(c *gin.Context) {
+			original := c.Writer
+			pooled := &aiLogPooledWriter{ResponseWriter: original}
+			defer func() {
+				if c.Writer == pooled {
+					c.Writer = original
+				}
+				pooled.released = true
+			}()
+			c.Writer = pooled
+			c.Next()
+		})
+		router.Use(aiLogCapture(s, "test"))
+		router.POST("/v1/messages", func(c *gin.Context) { c.String(want, "done") })
+		router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader("{}")))
+		if seen != want {
+			t.Fatalf("outer middleware saw status %d, want %d", seen, want)
+		}
+		if end := s.events[len(s.events)-1]; end.Metadata["status"] != want {
+			t.Fatalf("captured status %v, want %d", end.Metadata["status"], want)
+		}
+	}
+}

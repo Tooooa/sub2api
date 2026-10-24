@@ -21,6 +21,7 @@ STARTUP_TIMEOUT_SECONDS="${SUB2API_STARTUP_TIMEOUT_SECONDS:-180}"
 MONITOR_SECONDS="${SUB2API_MONITOR_SECONDS:-30}"
 DRAIN_SECONDS="${SUB2API_DRAIN_SECONDS:-60}"
 PRE_CUTOVER_CHECK="${SUB2API_PRE_CUTOVER_CHECK:-}"
+REDEPLOY_SAME_IMAGE="${SUB2API_REDEPLOY_SAME_IMAGE:-false}"
 
 TARGET_IMAGE=""
 TARGET_SLOT=""
@@ -63,9 +64,12 @@ Useful overrides:
   SUB2API_STARTUP_TIMEOUT_SECONDS  default: 180
   SUB2API_MONITOR_SECONDS    default: 30
   SUB2API_DRAIN_SECONDS      default: 60
+  SUB2API_REDEPLOY_SAME_IMAGE  default: false; true redeploys an image that
+                             is already active (to apply changed settings)
 
 The image must already exist locally and be linux/amd64. The script never
 builds, pulls, or stops the active container before the candidate is healthy.
+Running it again with the image that is already active changes nothing.
 EOF
 }
 
@@ -110,6 +114,14 @@ load_active_slot() {
   [[ "$(docker_inspect_value "$ACTIVE_CONTAINER" '{{.State.Status}}')" == running ]] || die "active container is not running: $ACTIVE_CONTAINER"
 }
 
+# Compare image IDs, not names: a retagged rebuild is a different image.
+active_runs_target_image() {
+  local active_image target_image
+  active_image="$(docker_inspect_value "$ACTIVE_CONTAINER" '{{.Image}}')"
+  target_image="$(docker image inspect "$TARGET_IMAGE" --format '{{.Id}}')"
+  [[ -n "$active_image" && "$active_image" == "$target_image" ]]
+}
+
 select_target_slot() {
   case "$ACTIVE_SLOT" in
     blue)
@@ -144,6 +156,7 @@ validate_inputs() {
     [[ "$PRE_CUTOVER_CHECK" == /* && -f "$PRE_CUTOVER_CHECK" && -x "$PRE_CUTOVER_CHECK" ]] \
       || die "SUB2API_PRE_CUTOVER_CHECK must be an absolute executable file"
   fi
+  [[ "$REDEPLOY_SAME_IMAGE" == true || "$REDEPLOY_SAME_IMAGE" == false ]] || die "SUB2API_REDEPLOY_SAME_IMAGE must be true or false"
 
   docker image inspect "$TARGET_IMAGE" >/dev/null 2>&1 || die "image is not loaded locally: $TARGET_IMAGE"
   local platform
@@ -176,7 +189,7 @@ stage_data() {
 }
 
 build_env_args() {
-  local env_value active_capture_enabled="" active_capture_source="" active_capture_max=""
+  local env_value active_capture_enabled="" active_capture_source="" active_capture_max="" active_capture_upstream=""
   ENV_ARGS=()
   while IFS= read -r env_value; do
     [[ -n "$env_value" ]] || continue
@@ -185,6 +198,7 @@ build_env_args() {
       AI_LOG_ENABLED=*) active_capture_enabled="${env_value#*=}"; continue ;;
       AI_LOG_SOURCE_ID=*) active_capture_source="${env_value#*=}"; continue ;;
       AI_LOG_SPOOL_MAX_BYTES=*) active_capture_max="${env_value#*=}"; continue ;;
+      AI_LOG_UPSTREAM_BODIES=*) active_capture_upstream="${env_value#*=}"; continue ;;
       AI_LOG_SPOOL_DIR=*) continue ;;
     esac
     ENV_ARGS+=(--env "$env_value")
@@ -193,6 +207,7 @@ build_env_args() {
   local capture_enabled="${AI_LOG_ENABLED:-$active_capture_enabled}"
   local capture_source="${AI_LOG_SOURCE_ID:-$active_capture_source}"
   local capture_max="${AI_LOG_SPOOL_MAX_BYTES:-$active_capture_max}"
+  local capture_upstream="${AI_LOG_UPSTREAM_BODIES:-$active_capture_upstream}"
   if [[ -n "$capture_enabled" ]]; then
     [[ "$capture_enabled" == true || "$capture_enabled" == false ]] || die "AI_LOG_ENABLED must be true or false"
     ENV_ARGS+=(--env "AI_LOG_ENABLED=$capture_enabled")
@@ -202,6 +217,10 @@ build_env_args() {
   fi
   if [[ -n "$capture_max" ]]; then
     ENV_ARGS+=(--env "AI_LOG_SPOOL_MAX_BYTES=$capture_max")
+  fi
+  if [[ -n "$capture_upstream" ]]; then
+    [[ "$capture_upstream" == true || "$capture_upstream" == false ]] || die "AI_LOG_UPSTREAM_BODIES must be true or false"
+    ENV_ARGS+=(--env "AI_LOG_UPSTREAM_BODIES=$capture_upstream")
   fi
   if [[ "$capture_enabled" == true ]]; then
     local capture_spool="${SUB2API_AI_LOG_SPOOL_HOST_DIR:-}"
@@ -373,6 +392,12 @@ main() {
   flock -n 9 || die "another blue-green deployment is already running"
   validate_inputs
   load_active_slot
+  # A repeated run must not cycle slots: that would require deleting the
+  # stopped rollback container and gains nothing.
+  if [[ "$REDEPLOY_SAME_IMAGE" != true ]] && active_runs_target_image; then
+    log "active container $ACTIVE_CONTAINER already runs $TARGET_IMAGE; nothing to do (SUB2API_REDEPLOY_SAME_IMAGE=true redeploys it)"
+    return 0
+  fi
   select_target_slot
   load_network_and_data
   stage_data
