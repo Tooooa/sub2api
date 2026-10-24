@@ -1,5 +1,10 @@
 # Repository customizations
 
+The production baseline remains `0.2.17-custom.4`; this worktree carries the
+`0.2.18-custom.5` upgrade candidate. The candidate keeps the four operational
+extensions below and must not be treated as deployed until the CI image and
+blue-green verification are complete.
+
 The base 0.2.17-custom.1 release merged the original Wei-Shaw/sub2api tag
 `v0.2.17` (`060d0160417782cd962a0c7f460f6cd4565d4916`) into the production
 line based on `0.2.15-custom.1` (`f4d0a1527`). It preserves four operational

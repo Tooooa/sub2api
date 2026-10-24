@@ -1,8 +1,10 @@
 # Sub2API deployment documentation
 
-The verified production baseline is `0.2.17-custom.4` / `183d82934` on the
-Los Angeles relay, deployed on 2026-10-23 (Asia/Taipei). Recognized capacity
-errors now switch accounts immediately instead of retrying on the same account.
+The verified production baseline remains `0.2.17-custom.4` / `183d82934` on the
+Los Angeles relay, deployed on 2026-10-23 (Asia/Taipei). The upgrade candidate
+is `0.2.18-custom.5`; it is not production-confirmed until the CI image and
+blue-green health/logging checks complete. Recognized capacity errors now switch
+accounts immediately instead of retrying on the same account.
 The earlier metadata/preamble/heartbeat output guards remain intact. Full CI,
 security scans, image identity verification and eight real candidate/public
 checks passed. Builds are prohibited on the user's Mac and production relay.
