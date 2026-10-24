@@ -1,9 +1,15 @@
 # Repository customizations
 
+The verified production baseline is `0.2.18-custom.5`, image
+`sha256:1cbd71402cc7e691f8634b3ddce2bc9f2237974ee3cca73dc5edb68b2e6d8e7e`,
+from source `cfe937198`. It keeps the four operational extensions below. The
+release also includes the reviewed AI-log and blue-green fixes from
+`MaYiding/sub2api` `origin/dev`; see the [release record](../deploy/RELEASE_0.2.18_CUSTOM_5.md).
+
 The base 0.2.17-custom.1 release merged the original Wei-Shaw/sub2api tag
 `v0.2.17` (`060d0160417782cd962a0c7f460f6cd4565d4916`) into the production
 line based on `0.2.15-custom.1` (`f4d0a1527`). It preserves four operational
-extensions. The current `0.2.17-custom.4` hotfix retains the Responses metadata
+extensions. The current `0.2.18-custom.5` release retains the Responses metadata
 and Messages preamble/ping replay guards from custom.3 and sends recognized
 capacity failures directly to another account. Actual content and client
 disconnects still prevent replay; ordinary OAuth 429 and other retry policies
