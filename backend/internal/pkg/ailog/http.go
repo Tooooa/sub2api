@@ -73,7 +73,7 @@ func (b *httpBody) Read(p []byte) (int, error) {
 	defer b.mu.Unlock()
 	if !b.ended {
 		if n > 0 {
-			b.digest.Write(p[:n])
+			_, _ = b.digest.Write(p[:n])
 			b.bytes += int64(n)
 			b.stream.Write(p[:n])
 		}

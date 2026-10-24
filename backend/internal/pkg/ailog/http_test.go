@@ -97,9 +97,17 @@ func TestTransportSummarizesUpstreamBodiesUnlessEnabled(t *testing.T) {
 		capture.Finish(nil)
 		var events []Event
 		if copied {
-			events = sink.(*bodyTestSink).events
+			bodySink, ok := sink.(*bodyTestSink)
+			if !ok {
+				t.Fatal("copied-body sink type changed")
+			}
+			events = bodySink.events
 		} else {
-			events = sink.(*testSink).events
+			plainSink, ok := sink.(*testSink)
+			if !ok {
+				t.Fatal("summary-only sink type changed")
+			}
+			events = plainSink.events
 		}
 		if events[0].Metadata["upstream_bodies"] != copied {
 			t.Fatal("start does not record upstream body mode")
