@@ -31,8 +31,27 @@ reverse_proxy 127.0.0.1:8080 {
 ```
 
 Validate and reload Caddy; do not restart the Caddy container. The deployment
-script replaces only the direct `reverse_proxy 127.0.0.1:<port>` line inside
-the site identified by `SUB2API_CADDY_SITE_HOST`.
+script replaces only the direct loopback `reverse_proxy` line inside each site
+selected for this rollout. For the historical single-site behavior, set
+`SUB2API_CADDY_SITE_HOST`. When several Caddy sites share this blue-green
+stack, set `SUB2API_CADDY_SITE_HOSTS` to an explicit comma-separated host list;
+it takes precedence over the singular variable:
+
+```bash
+export SUB2API_CADDY_SITE_HOSTS='sub2api.huafucius.top:8443,api.aura-home.online:8443'
+```
+
+Every listed host must have exactly one site block and exactly one direct
+loopback `reverse_proxy` line. Missing or duplicate matches fail before the
+live Caddyfile is replaced. All selected sites are rendered into one
+candidate, then Caddy validates and reloads that single configuration; a
+validation or reload failure restores the original Caddyfile. Sites not in the
+list are left unchanged.
+
+Before starting a candidate, point every selected site only at the currently
+active port. A dormant candidate port listed first can begin receiving traffic
+as soon as its container starts, bypassing the pre-cutover request gate. The
+deployer adds the candidate first and old port second only after that gate.
 
 ## First rollout from the current single container
 
