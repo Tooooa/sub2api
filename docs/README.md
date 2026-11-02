@@ -2,7 +2,9 @@
 
 The verified production baseline is `0.2.18-custom.5` / image
 `sha256:1cbd71402cc7e691f8634b3ddce2bc9f2237974ee3cca73dc5edb68b2e6d8e7e`
-on the Los Angeles relay, deployed on 2026-10-25 (Asia/Shanghai). It is the
+deployed on 2026-10-25 (Asia/Shanghai) and migrated to the New York relay
+(`23.252.107.103`, SSH alias `newYork`) on October 27. Runtime identity was
+read back unchanged on November 2; Los Angeles retains the old rollback stack. It is the
 `cfe937198` image built by GitHub Actions for `linux/amd64`; the prior
 `0.2.17-custom.4` blue slot remains stopped for rollback. Recognized capacity
 errors still switch accounts immediately instead of retrying on the same account.
@@ -24,8 +26,8 @@ relay.
 | Blue-green deployment | Implemented | Updating the production app image | [BLUE_GREEN.md](../deploy/BLUE_GREEN.md) |
 | Capture contract | Deployed | Understanding payload capture and loss behavior | [AI_LOGGING.md](../deploy/AI_LOGGING.md) |
 | Central source registry | Attachment evidence | Source identity, credentials and central retention | [AI_LOG_MULTI_SITE_DESIGN.md](../deploy/AI_LOG_MULTI_SITE_DESIGN.md) |
-| Runtime GLM providers | Verified before release | Preserving existing provider configuration | [BIGMODEL.md](BIGMODEL.md) |
-| Production model allowlist | Verified before release | Checking current models after an update | [model-access.md](model-access.md) |
+| Runtime GLM providers | Current configuration read back 2026-11-02 | Preserving existing provider configuration | [BIGMODEL.md](BIGMODEL.md) |
+| Production model allowlist | 18 retained; Terra attempt rolled back 2026-11-02 | Checking current models after an update | [model-access.md](model-access.md) |
 | Image model access | Verified before release | Checking image models after an update | [image-model-access.md](image-model-access.md) |
 
 Other upstream feature documents in this directory retain their original scope.
