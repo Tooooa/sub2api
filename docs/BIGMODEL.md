@@ -2,6 +2,19 @@
 
 2026-10-09，在生产 `0.2.13-custom.1` 上通过管理员 API 先后新增两个智谱官方账号，未修改程序或部署镜像。当时镜像源码为 `da33263c0`；以下 10 月 9 日配置与验证保留为历史。
 
+## 2026-11-02 新增 GLMrcy / GLMzxh2 两站账号
+
+按用户提供的两个 BigModel Key，已在两套生产中转分别新增同名账号，并保留现有 Coding Plan 接入方式：
+
+| 站点 | 分组 | 账号 | 状态 | 并发 / 优先级 / 倍率 | 模型映射 |
+| --- | --- | --- | --- | --- | --- |
+| 纽约 `api.aura-home.online` | `2`「晴天纪」 | `45` `GLMrcy`、`46` `GLMzxh2` | active、可调度 | `5 / 2 / 1` | `glm-4.7`、`glm-5.2`、`glm-5.3`、`glm-5.3-flash` |
+| 武汉 `api.qingtianji.com` | `4`「晴天纪武汉」 | `35` `GLMrcy`、`36` `GLMzxh2` | active、可调度 | `5 / 2 / 1` | `glm-4.7`、`glm-5.2`、`glm-5.3`、`glm-5.3-flash` |
+
+两个 Key 均先直连 BigModel `glm-5.3-flash` 验证返回 `OK`，再写入对应站点；纽约和武汉公网均核对 `/v1/models` 为 19 个模型、GLM 四项存在，Chat Completions 返回同名 `glm-5.3-flash` 与 `OK`，`/health` 返回 HTTP 200。验证用的中转 Key 已删除。官方 Key 只保存在生产账号凭据中，不写入文档或 Git。
+
+回退时分别删除账号 `45/46`（纽约）和 `35/36`（武汉），或先关闭对应账号调度；不要覆盖两站其他账号、分组或白名单配置。
+
 ## 2026-11-02 纽约主站实时配置
 
 纽约分组 `2` 当前启用五个 GLM API Key 账号：`32`、`33`、`34`、`36`、`37`。均为 `platform=openai`、`type=apikey`、active、开启调度，每 Key 并发 `5`、优先级 `2`、倍率 `1`；凭据中的 Base URL 为 `https://open.bigmodel.cn/api/coding/paas/v4`，同名模型映射为 `glm-4.7`、`glm-5.2`、`glm-5.3`、`glm-5.3-flash`。当前分组白名单也只有这四个 GLM，旧账号 `27`、`28` 和普通按量端点不是当前配置。
