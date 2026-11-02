@@ -1,8 +1,18 @@
 # BigModel GLM 接入记录
 
-2026-10-09，在生产 `0.2.13-custom.1` 上通过管理员 API 先后新增两个智谱官方账号，未修改程序或部署镜像。生产镜像源码仍为 `da33263c0`。
+2026-10-09，在生产 `0.2.13-custom.1` 上通过管理员 API 先后新增两个智谱官方账号，未修改程序或部署镜像。当时镜像源码为 `da33263c0`；以下 10 月 9 日配置与验证保留为历史。
 
-## 当前配置
+## 2026-11-02 纽约主站实时配置
+
+纽约分组 `2` 当前启用五个 GLM API Key 账号：`32`、`33`、`34`、`36`、`37`。均为 `platform=openai`、`type=apikey`、active、开启调度，每 Key 并发 `5`、优先级 `2`、倍率 `1`；凭据中的 Base URL 为 `https://open.bigmodel.cn/api/coding/paas/v4`，同名模型映射为 `glm-4.7`、`glm-5.2`、`glm-5.3`、`glm-5.3-flash`。当前分组白名单也只有这四个 GLM，旧账号 `27`、`28` 和普通按量端点不是当前配置。
+
+此为现有用户配置读回，本轮保留 Coding Plan 接入、Key、并发、倍率和映射，未切换端点或恢复旧 FlashX 条目。主站客户端入口为 `https://api.aura-home.online/v1`；武汉站是另一套配置与 Key，本轮未修改。
+
+新候选 `glm-5.3-flashx-legal` 的[官方说明](https://docs.bigmodel.cn/cn/guide/models/vlm/glm-5.3-flash#glm-5-3-flashx-legal)要求企业定向申请。账号 `32` 经现有端点实际调用返回 HTTP 429、代码 `1113`（余额不足或无可用资源包），没有完成输出，故不加入映射或分组清单，不购买权限。没有重复测试其他旧 GLM 模型，不能把该候选错误外推为所有 GLM 不可用。
+
+本轮账号核心设置、端点与映射比较无差异；备份与证据见 `/Volumes/MacData/09_tmp/weekly-model-discovery-20261102/`。完整 GPT 候选、回退和最终健康核验见 [生产模型清单](model-access.md)。
+
+## 2026-10-09 接入配置（历史）
 
 | 配置 | 值 |
 | --- | --- |
