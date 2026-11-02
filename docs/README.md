@@ -1,5 +1,11 @@
 # Sub2API deployment documentation
 
+User-approved candidate: `0.2.19-custom.1`, based on v0.2.19 plus selected
+OAuth non-streaming and frontend security patches. CI, database rollback and
+New York blue-green acceptance are pending; see the
+[candidate record](../deploy/RELEASE_0.2.19_CUSTOM_1.md). The baseline below
+remains production until runtime cutover is verified.
+
 The verified production baseline is `0.2.18-custom.5` / image
 `sha256:1cbd71402cc7e691f8634b3ddce2bc9f2237974ee3cca73dc5edb68b2e6d8e7e`
 deployed on 2026-10-25 (Asia/Shanghai) and migrated to the New York relay
