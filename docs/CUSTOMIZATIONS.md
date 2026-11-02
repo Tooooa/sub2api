@@ -14,7 +14,8 @@ and Messages preamble/ping replay guards from custom.3 and sends recognized
 capacity failures directly to another account. Actual content and client
 disconnects still prevent replay; ordinary OAuth 429 and other retry policies
 remain unchanged. The capacity policy is a documented release exception to
-upstream behavior. Release checks retain Go 1.27.3 and follow-redirects 1.16.1.
+upstream behavior. Release checks retain Go 1.27.3. The 0.2.19-custom.1 candidate pins
+follow-redirects 1.16.2 for GHSA-mrwp-f3q8-3g9p.
 See the [verified fast-failover record](../deploy/FAST_CAPACITY_FAILOVER_20261023.md)
 and [earlier output-guard repair](../deploy/STREAMING_CAPACITY_FAILOVER_20261021.md).
 The four operational extensions are:
