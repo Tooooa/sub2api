@@ -24,7 +24,9 @@ grep -Eq 'stream_close_delay' "$DEPLOY_DIR/Caddyfile"
 
 fixture="$(mktemp)"
 rendered="$(mktemp)"
-trap 'rm -f "$fixture" "$rendered"' EXIT
+multi_fixture="$(mktemp)"
+multi_rendered="$(mktemp)"
+trap 'rm -f "$fixture" "$rendered" "$multi_fixture" "$multi_rendered"' EXIT
 cp "$DEPLOY_DIR/Caddyfile" "$fixture"
 source "$SCRIPT"
 CADDYFILE="$fixture"
@@ -39,11 +41,66 @@ ACTIVE_PORT=18081
 render_caddy_candidate "$rendered"
 grep -Fq 'reverse_proxy 127.0.0.1:8080 127.0.0.1:18081' "$rendered"
 
-echo 'blue-green deployment script test passed'
+cat > "$multi_fixture" <<'CADDY'
+https://sub2api.huafucius.top:8443 {
+    reverse_proxy 127.0.0.1:8080 {
+        lb_policy first
+    }
+}
+
+https://api.aura-home.online:8443 {
+    reverse_proxy localhost:8080 {
+        lb_policy first
+    }
+}
+
+unselected.example:8443 {
+    reverse_proxy 127.0.0.1:19000 {
+        lb_policy first
+    }
+}
+CADDY
+
+# Every selected site is cut in one candidate, while an unselected site is unchanged.
+CADDYFILE="$multi_fixture"
+CADDY_SITE_HOSTS='sub2api.huafucius.top:8443,api.aura-home.online:8443'
+TARGET_PORT=18081
+ACTIVE_PORT=8080
+render_caddy_candidate "$multi_rendered"
+[[ "$(grep -Fc 'reverse_proxy 127.0.0.1:18081 127.0.0.1:8080 {' "$multi_rendered")" -eq 2 ]]
+grep -Fq 'reverse_proxy 127.0.0.1:18081 127.0.0.1:8080 {' "$multi_rendered"
+[[ "$(grep -Ec 'reverse_proxy (127[.]0[.]0[.]1|localhost):8080' "$multi_rendered")" -eq 0 ]]
+grep -Fq 'reverse_proxy 127.0.0.1:19000 {' "$multi_rendered"
+
+# A single explicitly selected site changes; the other site stays on its old port.
+CADDY_SITE_HOSTS='sub2api.huafucius.top:8443'
+render_caddy_candidate "$multi_rendered"
+grep -Fq 'reverse_proxy 127.0.0.1:18081 127.0.0.1:8080 {' "$multi_rendered"
+grep -Fq 'reverse_proxy localhost:8080 {' "$multi_rendered"
+grep -Fq 'reverse_proxy 127.0.0.1:19000 {' "$multi_rendered"
+
+# A missing selected site must fail before the source Caddyfile is changed.
+CADDY_SITE_HOSTS='sub2api.huafucius.top:8443,missing.example:8443'
+original_multi_fixture="$(cat "$multi_fixture")"
+if (render_caddy_candidate "$multi_rendered"); then
+  echo 'a missing Caddy site host must fail rendering' >&2
+  exit 1
+fi
+[[ "$(cat "$multi_fixture")" == "$original_multi_fixture" ]]
+
+# Duplicate direct loopback proxies must also fail the exact-match guard.
+printf '%s\n' 'sub2api.huafucius.top:8443 {' '    reverse_proxy 127.0.0.1:8080' '    reverse_proxy localhost:18081' '}' > "$multi_fixture"
+CADDY_SITE_HOSTS='sub2api.huafucius.top:8443'
+if (render_caddy_candidate "$multi_rendered"); then
+  echo 'duplicate direct Caddy proxies must fail rendering' >&2
+  exit 1
+fi
+
+echo 'blue-green Caddy multi-site rendering test passed'
 
 # The WAL must stay outside copied app data and survive both deployment slots.
 capture_dir="$(mktemp -d)"
-trap 'rm -f "$fixture" "$rendered"; rmdir "$capture_dir"' EXIT
+trap 'rm -f "$fixture" "$rendered" "$multi_fixture" "$multi_rendered"; rmdir "$capture_dir"' EXIT
 mock_capture=false
 docker_inspect_value() {
   case "$2" in
@@ -99,7 +156,7 @@ echo 'blue-green shared AI log spool test passed'
 # A failed real-request gate must return failure before switch_caddy is called.
 gate="$(mktemp)"
 gate_result="$(mktemp)"
-trap 'rm -f "$fixture" "$rendered" "$gate" "$gate_result"; rmdir "$capture_dir"' EXIT
+trap 'rm -f "$fixture" "$rendered" "$multi_fixture" "$multi_rendered" "$gate" "$gate_result"; rmdir "$capture_dir"' EXIT
 cat > "$gate" <<'GATE'
 #!/usr/bin/env bash
 [[ "$1" == 8080 && "$2" == sub2api-blue ]] || exit 8

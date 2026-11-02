@@ -1,4 +1,4 @@
-name: Build retry-10 deployment image
+name: Build deployment image
 
 on:
   workflow_dispatch:
@@ -20,12 +20,36 @@ jobs:
           context: .
           file: Dockerfile
           platforms: linux/amd64
+          tags: sub2api:ci-${{ github.sha }}
+          build-args: |
+            COMMIT=${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
           outputs: type=docker,dest=/tmp/sub2api-retry10-linux-amd64.tar
+
+      - name: Verify deployment image identity
+        env:
+          IMAGE: sub2api:ci-${{ github.sha }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          docker load --input /tmp/sub2api-retry10-linux-amd64.tar
+          test "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$IMAGE")" = linux/amd64
+          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$IMAGE")" = "$SOURCE_SHA"
+          docker run --rm --entrypoint /app/sub2api "$IMAGE" --version 2>&1 | tee /tmp/sub2api-version.txt
+          grep -F "$SOURCE_SHA" /tmp/sub2api-version.txt
+          grep -F "$(cat backend/cmd/server/VERSION)" /tmp/sub2api-version.txt
+          docker image inspect --format '{"id":"{{.Id}}","os":"{{.Os}}","architecture":"{{.Architecture}}"}' "$IMAGE" > /tmp/sub2api-image-identity.json
+          cd /tmp
+          sha256sum sub2api-retry10-linux-amd64.tar > sub2api-image.sha256
 
       - name: Upload deployment image
         uses: actions/upload-artifact@v7
         with:
           name: sub2api-retry10-linux-amd64
-          path: /tmp/sub2api-retry10-linux-amd64.tar
+          path: |
+            /tmp/sub2api-retry10-linux-amd64.tar
+            /tmp/sub2api-version.txt
+            /tmp/sub2api-image-identity.json
+            /tmp/sub2api-image.sha256
           if-no-files-found: error
           retention-days: 1

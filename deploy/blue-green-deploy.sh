@@ -11,6 +11,7 @@ CADDYFILE="${SUB2API_CADDYFILE:-/opt/sub2api-https/Caddyfile}"
 CADDY_CONTAINER="${SUB2API_CADDY_CONTAINER:-sub2api-https}"
 CADDY_CONFIG_PATH="${SUB2API_CADDY_CONFIG_PATH:-/etc/caddy/Caddyfile}"
 CADDY_SITE_HOST="${SUB2API_CADDY_SITE_HOST:-}"
+CADDY_SITE_HOSTS="${SUB2API_CADDY_SITE_HOSTS:-}"
 STATE_FILE="${SUB2API_BLUE_GREEN_STATE_FILE:-$DEPLOY_DIR/.blue-green-active}"
 STAGING_ROOT="${SUB2API_BLUE_GREEN_STAGING_DIR:-$DEPLOY_DIR/.blue-green}"
 LOCK_FILE="${SUB2API_BLUE_GREEN_LOCK_FILE:-/var/lock/sub2api-blue-green.lock}"
@@ -54,6 +55,8 @@ Usage:
 
 Required environment for the first production rollout:
   SUB2API_CADDY_SITE_HOST   Caddy site host, e.g. sub2api.example.com:8443
+  SUB2API_CADDY_SITE_HOSTS  optional comma-separated list of Caddy site hosts;
+                            takes precedence over SUB2API_CADDY_SITE_HOST
 
 Useful overrides:
   SUB2API_DEPLOY_DIR         default: /opt/sub2api/deploy
@@ -142,10 +145,41 @@ select_target_slot() {
   fi
 }
 
+caddy_site_hosts_csv() {
+  if [[ -n "$CADDY_SITE_HOSTS" ]]; then
+    printf '%s' "$CADDY_SITE_HOSTS"
+  else
+    printf '%s' "$CADDY_SITE_HOST"
+  fi
+}
+
+validate_caddy_site_hosts() {
+  local hosts_csv host raw seen_host
+  local -a hosts seen
+  hosts_csv="$(caddy_site_hosts_csv)"
+  [[ -n "$hosts_csv" ]] || die "SUB2API_CADDY_SITE_HOST or SUB2API_CADDY_SITE_HOSTS is required"
+  [[ "$hosts_csv" != ,* && "$hosts_csv" != *, && "$hosts_csv" != *,,* ]] \
+    || die "Caddy site host list must not contain empty entries"
+
+  IFS=',' read -r -a hosts <<< "$hosts_csv"
+  for raw in "${hosts[@]}"; do
+    host="$raw"
+    host="${host#"${host%%[![:space:]]*}"}"
+    host="${host%"${host##*[![:space:]]}"}"
+    host="${host#http://}"
+    host="${host#https://}"
+    [[ -n "$host" && "$host" != *[[:space:]]* ]] || die "Caddy site hosts must be non-empty host tokens"
+    for seen_host in "${seen[@]-}"; do
+      [[ "$seen_host" != "$host" ]] || die "Caddy site host is listed more than once: $host"
+    done
+    seen+=("$host")
+  done
+}
+
 validate_inputs() {
   [[ -n "$TARGET_IMAGE" ]] || die "image is required"
   [[ -f "$CADDYFILE" ]] || die "Caddyfile does not exist: $CADDYFILE"
-  [[ -n "$CADDY_SITE_HOST" ]] || die "SUB2API_CADDY_SITE_HOST is required"
+  validate_caddy_site_hosts
   require_integer SUB2API_STARTUP_TIMEOUT_SECONDS "$STARTUP_TIMEOUT_SECONDS"
   require_integer SUB2API_MONITOR_SECONDS "$MONITOR_SECONDS"
   require_integer SUB2API_DRAIN_SECONDS "$DRAIN_SECONDS"
@@ -275,38 +309,113 @@ wait_for_candidate() {
 
 render_caddy_candidate() {
   local output="$1"
-  awk -v site_host="$CADDY_SITE_HOST" \
+  local site_hosts
+  validate_caddy_site_hosts
+  site_hosts="$(caddy_site_hosts_csv)"
+  awk -v site_hosts="$site_hosts" \
       -v upstream="reverse_proxy 127.0.0.1:${TARGET_PORT} 127.0.0.1:${ACTIVE_PORT}" '
-    BEGIN { in_site = 0; depth = 0; replaced = 0 }
+    function mark_site_hosts(line, i, j, n, token, site_part) {
+      site_part = line
+      sub(/[[:space:]]*#.*/, "", site_part)
+      sub(/[{}].*$/, "", site_part)
+      n = split(site_part, site_tokens, /[[:space:],]+/)
+      for (i = 1; i <= n; i++) {
+        token = site_tokens[i]
+        sub(/^https?:\/\//, "", token)
+        if (token == "") {
+          continue
+        }
+        for (j = 1; j <= host_count; j++) {
+          if (token == hosts[j]) {
+            site_hits[j]++
+            active_hosts[j] = 1
+          }
+        }
+      }
+    }
+
+    BEGIN {
+      in_site = 0
+      site_depth = 0
+      brace_depth = 0
+      host_count = split(site_hosts, raw_hosts, ",")
+      for (i = 1; i <= host_count; i++) {
+        hosts[i] = raw_hosts[i]
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", hosts[i])
+        sub(/^https?:\/\//, "", hosts[i])
+        if (hosts[i] == "") {
+          input_error = 1
+        }
+        if (seen_hosts[hosts[i]]++) {
+          input_error = 1
+        }
+      }
+    }
     {
-      if (!in_site && index($0, site_host) > 0 && $0 ~ /{/) {
-        in_site = 1
-        depth = 0
+      if (!in_site && brace_depth == 0 && $0 !~ /^[[:space:]]*#/ && $0 ~ /{/) {
+        for (i = 1; i <= host_count; i++) {
+          active_hosts[i] = 0
+        }
+        mark_site_hosts($0)
+        has_active_host = 0
+        for (i = 1; i <= host_count; i++) {
+          if (active_hosts[i]) {
+            has_active_host = 1
+          }
+        }
+        if (has_active_host) {
+          in_site = 1
+          site_depth = 0
+          line_replaced = 0
+        }
       }
 
-      if (in_site && $0 ~ /^[[:space:]]*reverse_proxy[[:space:]]+(127[.]0[.]0[.]1|localhost):[0-9]+([[:space:]]+(127[.]0[.]0[.]1|localhost):[0-9]+)*[[:space:]]*[{]?[[:space:]]*$/ && !replaced) {
-        match($0, /^[[:space:]]*/)
-        print substr($0, 1, RLENGTH) upstream (index($0, "{") > 0 ? " {" : "")
-        replaced = 1
+      if (in_site && site_depth == 1 && $0 ~ /^[[:space:]]*reverse_proxy[[:space:]]+(127[.]0[.]0[.]1|localhost):[0-9]+([[:space:]]+(127[.]0[.]0[.]1|localhost):[0-9]+)*[[:space:]]*[{]?[[:space:]]*$/) {
+        for (i = 1; i <= host_count; i++) {
+          if (active_hosts[i]) {
+            proxy_hits[i]++
+          }
+        }
+        if (!line_replaced) {
+          match($0, /^[[:space:]]*/)
+          print substr($0, 1, RLENGTH) upstream (index($0, "{") > 0 ? " {" : "")
+          line_replaced = 1
+        } else {
+          print
+        }
       } else {
         print
       }
 
+      code = $0
+      sub(/[[:space:]]*#.*/, "", code)
+      opens = gsub(/{/, "", code)
+      closes = gsub(/}/, "", code)
+      brace_depth += opens - closes
       if (in_site) {
-        line = $0
-        opens = gsub(/{/, "", line)
-        closes = gsub(/}/, "", line)
-        depth += opens - closes
-        if (depth <= 0) {
+        site_depth += opens - closes
+        if (site_depth <= 0) {
           in_site = 0
-          depth = 0
+          site_depth = 0
         }
       }
     }
-    END { if (!replaced) exit 42 }
+    END {
+      if (input_error) {
+        exit 43
+      }
+      for (i = 1; i <= host_count; i++) {
+        if (site_hits[i] != 1 || proxy_hits[i] != 1) {
+          exit 42
+        }
+      }
+    }
   ' "$CADDYFILE" > "$output" || {
     local status=$?
-    [[ "$status" -eq 42 ]] && die "could not find the Sub2API reverse_proxy line under Caddy site $CADDY_SITE_HOST"
+    if [[ "$status" -eq 42 ]]; then
+      die "each configured Caddy site host must contain exactly one site block and direct loopback reverse_proxy line: $site_hosts"
+    fi
+    [[ "$status" -eq 43 ]] && die "invalid Caddy site host list: $site_hosts"
     return "$status"
   }
 }

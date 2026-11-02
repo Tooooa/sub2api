@@ -1,22 +1,27 @@
 # Sub2API deployment documentation
 
-The verified production baseline is `0.2.18-custom.5` / image
-`sha256:1cbd71402cc7e691f8634b3ddce2bc9f2237974ee3cca73dc5edb68b2e6d8e7e`
-deployed on 2026-10-25 (Asia/Shanghai) and migrated to the New York relay
-(`23.252.107.103`, SSH alias `newYork`) on October 27. Runtime identity was
-read back unchanged on November 2; Los Angeles retains the old rollback stack. It is the
-`cfe937198` image built by GitHub Actions for `linux/amd64`; the prior
-`0.2.17-custom.4` blue slot remains stopped for rollback. Recognized capacity
-errors still switch accounts immediately instead of retrying on the same account.
-The metadata/preamble/heartbeat output guards and AI log capture remain intact.
-Full CI, security scan, image identity, blue-green health, migration, and
-logging checks passed. Builds are prohibited on the user's Mac and production
-relay.
+The verified production baseline is `0.2.19-custom.1`, application source
+`dba6cd764`, CI-built for `linux/amd64`, deployed on New York `23.252.107.103`
+on 2026-11-02. Active blue listens on `8080`; old green `0.2.18-custom.5` is
+stopped and retained for rollback. Both public sites switched together after
+real-request gates and a five-minute monitor. Full CI/security and restored-DB
+new/old compatibility checks passed. The four operational extensions, capacity
+failover and stream replay guards remain intact; scheduling flags and the
+18-model allowlist were preserved. Builds remain prohibited on the user's Mac
+and production relay.
+
+The pre-existing New York-to-Wuhan log transport outage was repaired using a
+restricted Japan TCP relay. Original full spool data remains in place and is
+draining; newest request WAL checks passed, but historical recovery and central
+replay of those newest captures are not yet complete. See the
+[release evidence](../deploy/RELEASE_0.2.19_CUSTOM_1.md) for identity, backups,
+relay dependency, limits and rollback.
 
 | Record | State | Read when | Path |
 |---|---|---|---|
+| 0.2.19 custom release evidence | Deployed and verified | Current image, migration, two-site cutover and log transport recovery | [Release record](../deploy/RELEASE_0.2.19_CUSTOM_1.md) |
 | Maintained customizations | Deployed | Integrating upstream or identifying local behavior | [CUSTOMIZATIONS.md](CUSTOMIZATIONS.md) |
-| 0.2.18 custom release evidence | Deployed and verified | Auditing the current image, backup, migration, rollback slot, and AI log spool | [Release record](../deploy/RELEASE_0.2.18_CUSTOM_5.md) |
+| 0.2.18 custom release evidence | Retained green rollback | Auditing the current image, backup, migration, rollback slot, and AI log spool | [Release record](../deploy/RELEASE_0.2.18_CUSTOM_5.md) |
 | 0.2.17 custom release evidence | Historical base, with logging limits recorded | Identifying the upstream merge and original custom baseline | [Release record](../deploy/RELEASE_0.2.17_CUSTOM_1.md) |
 | Faster capacity account switching | Deployed and verified | Reducing pre-output overload latency | [Fast failover](../deploy/FAST_CAPACITY_FAILOVER_20261023.md) |
 | Streaming capacity failover | Historical custom.3 rollout; guards retained | Investigating metadata mistaken for output and replay boundaries | [Failover repair](../deploy/STREAMING_CAPACITY_FAILOVER_20261021.md) |
