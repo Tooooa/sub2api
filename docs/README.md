@@ -7,7 +7,7 @@ stopped and retained for rollback. Both public sites switched together after
 real-request gates and a five-minute monitor. Full CI/security and restored-DB
 new/old compatibility checks passed. The four operational extensions, capacity
 failover and stream replay guards remain intact; scheduling flags and the
-18-model allowlist were preserved. Builds remain prohibited on the user's Mac
+19-model allowlist, including GPT-6.1 Terra, were preserved. Builds remain prohibited on the user's Mac
 and production relay.
 
 The pre-existing New York-to-Wuhan log transport outage was repaired using a
@@ -32,7 +32,7 @@ relay dependency, limits and rollback.
 | Capture contract | Deployed | Understanding payload capture and loss behavior | [AI_LOGGING.md](../deploy/AI_LOGGING.md) |
 | Central source registry | Attachment evidence | Source identity, credentials and central retention | [AI_LOG_MULTI_SITE_DESIGN.md](../deploy/AI_LOG_MULTI_SITE_DESIGN.md) |
 | Runtime GLM providers | Current configuration read back 2026-11-02 | Preserving existing provider configuration | [BIGMODEL.md](BIGMODEL.md) |
-| Production model allowlist | 18 retained; Terra attempt rolled back 2026-11-02 | Checking current models after an update | [model-access.md](model-access.md) |
+| Production model allowlist | 19 enabled, including GPT-6.1 Terra, as of 2026-11-02 | Checking current models after an update | [model-access.md](model-access.md) |
 | Image model access | Verified before release | Checking image models after an update | [image-model-access.md](image-model-access.md) |
 
 Other upstream feature documents in this directory retain their original scope.
