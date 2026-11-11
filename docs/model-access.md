@@ -1,5 +1,9 @@
 # 生产模型清单
 
+## 2026-11-11 纽约安全补丁发布验收
+
+纽约已蓝绿升级为 `0.2.19-custom.2-f4098e09a`，绿槽 `18081`。公网清单仍为 19 项，包含 GPT-6.1 Terra。Terra 流式、GPT-6 Luna JSON、GLM-5.3 Flash 与 Sunburst 图片真实调用通过，账号调度开关、模型映射和分组配置与发布前一致。详见 [发布记录](../deploy/RELEASE_0.2.19_CUSTOM_2.md)。
+
 ## 2026-11-02 两站新增 GLM API Key
 
 纽约分组 `2` 新增 `GLMrcy` / `GLMzxh2`（账号 `45/46`），武汉分组 `4` 新增同名账号（账号 `35/36`）。四个账号均为 active、可调度、并发 `5`、优先级 `2`、倍率 `1`，沿用 BigModel Coding Plan 端点和四个同名 GLM 映射。两个 Key 均经官方接口返回 `OK`，两站公网 `/v1/models`、GLM Chat Completions 和 `/health` 核验通过；验证 Key 已删除。详见 [BigModel GLM 接入记录](BIGMODEL.md)。

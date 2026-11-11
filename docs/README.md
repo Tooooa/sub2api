@@ -1,14 +1,14 @@
 # Sub2API deployment documentation
 
-The verified production baseline is `0.2.19-custom.1`, application source
-`dba6cd764`, CI-built for `linux/amd64`, deployed on New York `23.252.107.103`
-on 2026-11-02. Active blue listens on `8080`; old green `0.2.18-custom.5` is
-stopped and retained for rollback. Both public sites switched together after
-real-request gates and a five-minute monitor. Full CI/security and restored-DB
-new/old compatibility checks passed. The four operational extensions, capacity
-failover and stream replay guards remain intact; scheduling flags and the
-19-model allowlist, including GPT-6.1 Terra, were preserved. Builds remain prohibited on the user's Mac
-and production relay.
+The verified New York production baseline is `0.2.19-custom.2`, application
+source `f4098e09a`, built by CI for `linux/amd64` and deployed on 2026-11-11.
+Active green listens on `18081`. The previous `0.2.19-custom.1` blue is stopped
+and retained for rollback. This release fixes login refresh-token rotation,
+compression dependency vulnerabilities and the Go HTTP standard-library
+vulnerability. Full CI, security, race-detector and real-request gates passed.
+The 19-model allowlist, account scheduling flags and model mappings were
+verified against the pre-deployment configuration. See the
+[release evidence](../deploy/RELEASE_0.2.19_CUSTOM_2.md).
 
 The pre-existing New York-to-Wuhan log transport outage was repaired using a
 restricted Japan TCP relay. Original full spool data remains in place and is
@@ -19,9 +19,10 @@ relay dependency, limits and rollback.
 
 | Record | State | Read when | Path |
 |---|---|---|---|
-| 0.2.19 custom release evidence | Deployed and verified | Current image, migration, two-site cutover and log transport recovery | [Release record](../deploy/RELEASE_0.2.19_CUSTOM_1.md) |
+| 0.2.19 custom.2 security release | Deployed and verified | Current image, authentication, backups and rollback | [Release record](../deploy/RELEASE_0.2.19_CUSTOM_2.md) |
+| 0.2.19 custom.1 release evidence | Retained blue rollback | Current image, migration, two-site cutover and log transport recovery | [Release record](../deploy/RELEASE_0.2.19_CUSTOM_1.md) |
 | Maintained customizations | Deployed | Integrating upstream or identifying local behavior | [CUSTOMIZATIONS.md](CUSTOMIZATIONS.md) |
-| 0.2.18 custom release evidence | Retained green rollback | Auditing the current image, backup, migration, rollback slot, and AI log spool | [Release record](../deploy/RELEASE_0.2.18_CUSTOM_5.md) |
+| 0.2.18 custom release evidence | Archived older rollback | Auditing the current image, backup, migration, rollback slot, and AI log spool | [Release record](../deploy/RELEASE_0.2.18_CUSTOM_5.md) |
 | 0.2.17 custom release evidence | Historical base, with logging limits recorded | Identifying the upstream merge and original custom baseline | [Release record](../deploy/RELEASE_0.2.17_CUSTOM_1.md) |
 | Faster capacity account switching | Deployed and verified | Reducing pre-output overload latency | [Fast failover](../deploy/FAST_CAPACITY_FAILOVER_20261023.md) |
 | Streaming capacity failover | Historical custom.3 rollout; guards retained | Investigating metadata mistaken for output and replay boundaries | [Failover repair](../deploy/STREAMING_CAPACITY_FAILOVER_20261021.md) |
