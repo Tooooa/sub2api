@@ -10,12 +10,13 @@ The 19-model allowlist, account scheduling flags and model mappings were
 verified against the pre-deployment configuration. See the
 [release evidence](../deploy/RELEASE_0.2.19_CUSTOM_2.md).
 
-The pre-existing New York-to-Wuhan log transport outage was repaired using a
-restricted Japan TCP relay. Original full spool data remains in place and is
-draining; newest request WAL checks passed, but historical recovery and central
-replay of those newest captures are not yet complete. See the
-[release evidence](../deploy/RELEASE_0.2.19_CUSTOM_1.md) for identity, backups,
-relay dependency, limits and rollback.
+New York-to-Wuhan log transport uses the restricted Japan TCP relay installed
+on 2026-11-02. The shared source spool remains in place. On 2026-11-11 the source
+queue was empty with failures=0, and the release captures had complete WAL
+sequences. Central HDD replay of those new captures was not independently
+verified. The [current release evidence](../deploy/RELEASE_0.2.19_CUSTOM_2.md)
+records that boundary; the [earlier release](../deploy/RELEASE_0.2.19_CUSTOM_1.md)
+records the relay dependency and historical saturation losses.
 
 | Record | State | Read when | Path |
 |---|---|---|---|
