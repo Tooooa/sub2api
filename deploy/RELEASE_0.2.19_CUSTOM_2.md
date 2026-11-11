@@ -16,6 +16,11 @@ Upstream dependency patch `b6c0ca4256b3` updates brotli to 1.2.7 and
 klauspost/compress to 1.20.2 for GO-2026-6888 and GO-2026-6865, which the
 existing branch security scan identified as reachable.
 
+The compiler and CI use Go 1.27.4, fixing reachable standard-library
+GO-2026-6859 reported during this release. The Go builder image is pinned to
+its verified multi-platform manifest. The Python 3.9 source-shipper job uses
+Ubuntu 22.04 because setup-python provides no 3.9 build for Ubuntu 26.04.
+
 The candidate retains the deployed four operational extensions and capacity
 failover/replay guards. It adds no database migration. The release workflow
 runs the upstream concurrency regressions with Go's race detector before
