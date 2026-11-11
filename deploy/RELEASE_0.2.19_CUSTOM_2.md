@@ -12,6 +12,10 @@ same refresh token can issue only one replacement token pair. Redis consumption
 errors return service unavailable. Existing stored refresh tokens retain their
 format and work through the updated rotation path.
 
+Upstream dependency patch `b6c0ca4256b3` updates brotli to 1.2.7 and
+klauspost/compress to 1.20.2 for GO-2026-6888 and GO-2026-6865, which the
+existing branch security scan identified as reachable.
+
 The candidate retains the deployed four operational extensions and capacity
 failover/replay guards. It adds no database migration. The release workflow
 runs the upstream concurrency regressions with Go's race detector before
