@@ -1,5 +1,9 @@
 # Sub2API deployment documentation
 
+The current release candidate is `0.2.19-custom.2`, with upstream login refresh
+token rotation fix `7122efee948f`. CI verification and the authorized New York
+blue-green rollout are pending. See the [candidate record](../deploy/RELEASE_0.2.19_CUSTOM_2.md).
+
 The verified production baseline is `0.2.19-custom.1`, application source
 `dba6cd764`, CI-built for `linux/amd64`, deployed on New York `23.252.107.103`
 on 2026-11-02. Active blue listens on `8080`; old green `0.2.18-custom.5` is

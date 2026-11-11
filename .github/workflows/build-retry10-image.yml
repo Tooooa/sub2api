@@ -7,7 +7,20 @@ permissions:
   contents: read
 
 jobs:
+  refresh-token-race:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Verify single-use refresh token rotation under concurrency
+        working-directory: backend
+        run: go test -race -tags unit -count=1 -run 'TestRefreshTokenCacheConsumeIsAtomic|TestAuthServiceRefreshTokenPairConsumesTokenOnce' ./internal/repository ./internal/service
+
   build-linux-amd64-image:
+    needs: refresh-token-race
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
