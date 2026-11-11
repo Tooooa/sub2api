@@ -1,9 +1,9 @@
 # Repository customizations
 
-The verified production baseline is `0.2.19-custom.1`, OCI manifest
-`sha256:b2674e3e736887bfd28a0218ac1471fc95149bea80a2663bcecf9b2b9ee2130c`,
-from source `dba6cd764` on New York. See the
-[release evidence](../deploy/RELEASE_0.2.19_CUSTOM_1.md). It keeps the four operational extensions below. The
+The verified production baseline is `0.2.19-custom.2`, image ID
+`sha256:1249faaeca285b9c1bd433cab5b70100aaa1149053180aa91fa8988499827263`,
+from source `f4098e09a` on New York. See the
+[release evidence](../deploy/RELEASE_0.2.19_CUSTOM_2.md). It keeps the four operational extensions below. The
 release also includes the reviewed AI-log and blue-green fixes from
 `MaYiding/sub2api` `origin/dev`; see the [release record](../deploy/RELEASE_0.2.18_CUSTOM_5.md).
 
@@ -15,7 +15,7 @@ and Messages preamble/ping replay guards from custom.3 and sends recognized
 capacity failures directly to another account. Actual content and client
 disconnects still prevent replay; ordinary OAuth 429 and other retry policies
 remain unchanged. The capacity policy is a documented release exception to
-upstream behavior. Release checks retain Go 1.27.3. The 0.2.19-custom.1 release pins
+upstream behavior. Current release checks use Go 1.27.4, brotli 1.2.7 and klauspost/compress 1.20.2 for the documented security fixes. The 0.2.19-custom.1 release pins
 follow-redirects 1.16.2 for GHSA-mrwp-f3q8-3g9p.
 See the [verified fast-failover record](../deploy/FAST_CAPACITY_FAILOVER_20261023.md)
 and [earlier output-guard repair](../deploy/STREAMING_CAPACITY_FAILOVER_20261021.md).
