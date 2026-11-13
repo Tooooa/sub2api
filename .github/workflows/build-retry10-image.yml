@@ -15,9 +15,9 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
-      - name: Verify single-use refresh token rotation under concurrency
+      - name: Verify quota isolation and refresh token concurrency
         working-directory: backend
-        run: go test -race -tags unit -count=1 -run 'TestRefreshTokenCacheConsumeIsAtomic|TestAuthServiceRefreshTokenPairConsumesTokenOnce' ./internal/repository ./internal/service
+        run: go test -race -tags unit -count=1 -run 'TestCodexQuota|TestNativeImages.*Quota|TestTextQuotaRecovery|TestOpenAI429FastPath|TestIsModelRateLimited|TestShouldAutoPauseOpenAI|TestRefreshTokenCacheConsumeIsAtomic|TestAuthServiceRefreshTokenPairConsumesTokenOnce' ./internal/repository ./internal/service
 
   build-linux-amd64-image:
     needs: refresh-token-race

@@ -411,7 +411,7 @@ func openAICompatibleAccountEligibilityFailureReasonBeforeProfit(ctx context.Con
 		return "not_schedulable"
 	}
 	if account.IsOpenAI() {
-		if paused, reason := shouldAutoPauseOpenAIAccountByQuota(ctx, account); paused {
+		if paused, reason := shouldAutoPauseOpenAIAccountByQuota(ctx, account, requestedModel); paused {
 			// Debug level: this fires per-candidate on the scheduling hot path, so Info
 			// would amplify into log spam once several accounts cross the threshold.
 			slog.Debug("account_auto_paused_by_quota",
@@ -527,8 +527,11 @@ func grokQuotaSnapshotStaleForPause(snapshot *xai.QuotaSnapshot, now time.Time) 
 	return now.Sub(updatedAt) >= openAICodexAutoPauseStaleAfter
 }
 
-func shouldAutoPauseOpenAIAccountByQuota(ctx context.Context, account *Account) (bool, openAIQuotaAutoPauseDecision) {
+func shouldAutoPauseOpenAIAccountByQuota(ctx context.Context, account *Account, requestedModel ...string) (bool, openAIQuotaAutoPauseDecision) {
 	if account == nil || !account.IsOpenAI() {
+		return false, openAIQuotaAutoPauseDecision{}
+	}
+	if len(requestedModel) > 0 && isNativeOpenAIImagesQuotaRequest(ctx, account, requestedModel[0]) {
 		return false, openAIQuotaAutoPauseDecision{}
 	}
 	// 自动用卡有独立阈值：达到消费阈值时必须先退出调度；仅达到普通暂停阈值时，

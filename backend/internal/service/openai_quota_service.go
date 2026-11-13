@@ -335,6 +335,13 @@ func (s *OpenAIQuotaService) clearQuotaRuntimeStateBestEffort(ctx context.Contex
 		return
 	}
 
+	// Only the reserved text-quota scope can be reconciled from global Codex
+	// quota. Image, Spark and plan/model restrictions must remain untouched.
+	if account.isRateLimitActiveForKey(openAICodexTextQuotaKey) {
+		if err := s.accountRepo.SetModelRateLimit(ctx, accountID, openAICodexTextQuotaKey, time.Now(), "openai_codex_text_quota_recovered"); err != nil {
+			slog.Warn("openai_codex_text_quota_reconcile_failed", "account_id", accountID, "error", err)
+		}
+	}
 	clearRateLimit := force || account.RateLimitedAt != nil || account.RateLimitResetAt != nil || account.OverloadUntil != nil
 	clearTempUnschedulable := force || account.TempUnschedulableUntil != nil
 	cleared := true

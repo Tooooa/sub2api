@@ -176,6 +176,10 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamError(ctx context.Cont
 		s.rateLimitService.HandleOpenAICodexSparkRateLimit(stateCtx, account, canonicalModel[0], statusCode, headers, responseBody) {
 		return false
 	}
+	if s.rateLimitService != nil && len(canonicalModel) > 0 &&
+		s.rateLimitService.handleOpenAICodexQuotaLimit(stateCtx, account, canonicalModel[0], statusCode, headers, responseBody) {
+		return false
+	}
 	if statusCode == http.StatusTooManyRequests {
 		s.markOpenAIOAuth429RateLimited(stateCtx, account, headers, responseBody)
 	}

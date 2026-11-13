@@ -84,6 +84,9 @@ func (a *Account) modelRateLimitKeysForRequest(ctx context.Context, requestedMod
 			keys = append(keys, antigravityGeminiModelRateLimitKey)
 		}
 	case PlatformOpenAI:
+		if isOpenAIOAuthAccount(a) && !isCodexSparkModel(modelKey) && !isNativeOpenAIImagesQuotaRequest(ctx, a, requestedModel) {
+			keys = append(keys, openAICodexTextQuotaKey)
+		}
 		if openAIImageGenerationRateLimitApplies(ctx, requestedModel, modelKey) && modelKey != openAIImageGenerationRateLimitKey {
 			keys = append(keys, openAIImageGenerationRateLimitKey)
 		}
