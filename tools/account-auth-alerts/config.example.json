@@ -1,0 +1,13 @@
+{
+  "state_path": "/external/private/account-auth-alerts/state.json",
+  "feishu_ask": "~/.local/bin/feishu-ask",
+  "notification_session": "sub2api-account-auth-alerts",
+  "confirmations": 2,
+  "minimum_failure_seconds": 300,
+  "recent_use_days": 7,
+  "ignored_accounts": [],
+  "sites": [
+    {"id": "newyork", "name": "纽约", "ssh": "root@new-york.example", "identity_file": "~/.ssh/id_ed25519_lab"},
+    {"id": "wuhan", "name": "武汉", "ssh": "admin@wuhan.example", "identity_file": "~/.ssh/id_ed25519_lab", "sudo": true}
+  ]
+}
