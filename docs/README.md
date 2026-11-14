@@ -10,6 +10,14 @@ The 19-model allowlist, account scheduling flags and model mappings were
 verified against the pre-deployment configuration. See the
 [release evidence](../deploy/RELEASE_0.2.19_CUSTOM_2.md).
 
+On 2026-11-14, exhausted Pro quotas and invalid OAuth sessions reduced New
+York's public catalog to seven models and caused GPT-6.1 Terra HTTP 503. One
+existing reset credit on account 17 restored capacity; the public catalog is
+back to 19 and real Terra, GPT-6.1 Sol and Sunburst requests passed. Account 25
+was refreshed and restricted to its actual free-plan models. No image or code
+was deployed. Higher-tier capacity currently depends mainly on account 17;
+see [model access](model-access.md) for limits and audit backups.
+
 New York-to-Wuhan log transport uses the restricted Japan TCP relay installed
 on 2026-11-02. The shared source spool remains in place. On 2026-11-11 the source
 queue was empty with failures=0, and the release captures had complete WAL
@@ -34,7 +42,7 @@ records the relay dependency and historical saturation losses.
 | Capture contract | Deployed | Understanding payload capture and loss behavior | [AI_LOGGING.md](../deploy/AI_LOGGING.md) |
 | Central source registry | Attachment evidence | Source identity, credentials and central retention | [AI_LOG_MULTI_SITE_DESIGN.md](../deploy/AI_LOG_MULTI_SITE_DESIGN.md) |
 | Runtime GLM providers | Current configuration read back 2026-11-02 | Preserving existing provider configuration | [BIGMODEL.md](BIGMODEL.md) |
-| Production model allowlist | 19 enabled, including GPT-6.1 Terra, as of 2026-11-02 | Checking current models after an update | [model-access.md](model-access.md) |
+| Production model allowlist | New York restored to 19 on 2026-11-14; Terra, Sol and Sunburst verified | Checking current models, quota exhaustion and recovery | [model-access.md](model-access.md) |
 | Image model access | Verified before release | Checking image models after an update | [image-model-access.md](image-model-access.md) |
 
 Other upstream feature documents in this directory retain their original scope.
