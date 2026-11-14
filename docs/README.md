@@ -18,6 +18,12 @@ was refreshed and restricted to its actual free-plan models. No image or code
 was deployed. Higher-tier capacity currently depends mainly on account 17;
 see [model access](model-access.md) for limits and audit backups.
 
+The subsequent two-site check restored Wuhan's missing Terra listing and
+removed image routing through its downgraded free account 28. Both sites now
+advertise the same 19 IDs; every model was called on each site and all 38
+site/model combinations passed after the Wuhan image-1 repair. New York 17 and
+Wuhan 22/32 share one upstream quota, so these are not independent capacities.
+
 New York-to-Wuhan log transport uses the restricted Japan TCP relay installed
 on 2026-11-02. The shared source spool remains in place. On 2026-11-11 the source
 queue was empty with failures=0, and the release captures had complete WAL
@@ -42,7 +48,7 @@ records the relay dependency and historical saturation losses.
 | Capture contract | Deployed | Understanding payload capture and loss behavior | [AI_LOGGING.md](../deploy/AI_LOGGING.md) |
 | Central source registry | Attachment evidence | Source identity, credentials and central retention | [AI_LOG_MULTI_SITE_DESIGN.md](../deploy/AI_LOG_MULTI_SITE_DESIGN.md) |
 | Runtime GLM providers | Current configuration read back 2026-11-02 | Preserving existing provider configuration | [BIGMODEL.md](BIGMODEL.md) |
-| Production model allowlist | New York restored to 19 on 2026-11-14; Terra, Sol and Sunburst verified | Checking current models, quota exhaustion and recovery | [model-access.md](model-access.md) |
+| Production model allowlist | Both sites list the same 19 IDs; 38 site/model combinations passed on 2026-11-14 | Checking model parity, shared quota and recovery | [model-access.md](model-access.md) |
 | Image model access | Verified before release | Checking image models after an update | [image-model-access.md](image-model-access.md) |
 
 Other upstream feature documents in this directory retain their original scope.
