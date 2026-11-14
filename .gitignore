@@ -145,6 +145,7 @@ docs/*
 !docs/BIGMODEL.md
 !docs/image-model-access.md
 !docs/model-access.md
+!docs/account-auth-alerts.md
 !docs/PLUGIN_DEVELOPMENT.md
 !docs/channel-monitor-v2-safe-defaults.md
 !docs/codex-credits.md

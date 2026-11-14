@@ -24,6 +24,11 @@ advertise the same 19 IDs; every model was called on each site and all 38
 site/model combinations passed after the Wuhan image-1 repair. New York 17 and
 Wuhan 22/32 share one upstream quota, so these are not independent capacities.
 
+On 2026-11-15, a local read-only OAuth failure monitor was installed for both
+sites. It sends deduplicated Feishu alerts for recently used or scheduled accounts,
+annotates actual usage and excludes inactive historical errors. See the
+[monitor record](account-auth-alerts.md) for scope, timing, validation and backups.
+
 New York-to-Wuhan log transport uses the restricted Japan TCP relay installed
 on 2026-11-02. The shared source spool remains in place. On 2026-11-11 the source
 queue was empty with failures=0, and the release captures had complete WAL
@@ -49,6 +54,7 @@ records the relay dependency and historical saturation losses.
 | Central source registry | Attachment evidence | Source identity, credentials and central retention | [AI_LOG_MULTI_SITE_DESIGN.md](../deploy/AI_LOG_MULTI_SITE_DESIGN.md) |
 | Runtime GLM providers | Current configuration read back 2026-11-02 | Preserving existing provider configuration | [BIGMODEL.md](BIGMODEL.md) |
 | Production model allowlist | Both sites list the same 19 IDs; 38 site/model combinations passed on 2026-11-14 | Checking model parity, shared quota and recovery | [model-access.md](model-access.md) |
+| OAuth failure notifications | Installed 2026-11-15; usage-aware, deduplicated; 21 tests passed | Authorization failure alerts, historical account exclusions and local background task | [account-auth-alerts.md](account-auth-alerts.md) |
 | Image model access | Verified before release | Checking image models after an update | [image-model-access.md](image-model-access.md) |
 
 Other upstream feature documents in this directory retain their original scope.
