@@ -602,6 +602,16 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		if err != nil {
 			return nil, err
 		}
+		if enabled, exists := normalizedExtra[OpenAIOAuthExternalRefreshExtraKey]; exists {
+			if _, ok := enabled.(bool); !ok {
+				return nil, infraerrors.BadRequest("INVALID_OPENAI_OAUTH_EXTERNAL_REFRESH", "openai_oauth_external_refresh must be a boolean")
+			}
+		} else if current, exists := account.Extra[OpenAIOAuthExternalRefreshExtraKey]; exists {
+			if normalizedExtra == nil {
+				normalizedExtra = make(map[string]any)
+			}
+			normalizedExtra[OpenAIOAuthExternalRefreshExtraKey] = current
+		}
 		if err := ValidateUpstreamRequestIDHeaderExtra(normalizedExtra); err != nil {
 			return nil, err
 		}

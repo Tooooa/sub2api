@@ -196,6 +196,12 @@ func (a *Account) IsSchedulable() bool {
 		return false
 	}
 	now := time.Now()
+	if a.UsesExternallyRefreshedOpenAIOAuth() {
+		tokenExpiry := a.GetOpenAITokenExpiresAt()
+		if tokenExpiry == nil || !now.Before(*tokenExpiry) {
+			return false
+		}
+	}
 	if a.AutoPauseOnExpired && a.ExpiresAt != nil && !now.Before(*a.ExpiresAt) {
 		return false
 	}
@@ -1464,6 +1470,14 @@ func (a *Account) IsAnthropic() bool {
 
 func (a *Account) IsOpenAIOAuth() bool {
 	return a.IsOpenAI() && a.Type == AccountTypeOAuth
+}
+
+const OpenAIOAuthExternalRefreshExtraKey = "openai_oauth_external_refresh"
+
+// UsesExternallyRefreshedOpenAIOAuth reports whether this account receives rotated credentials from a separate owner.
+func (a *Account) UsesExternallyRefreshedOpenAIOAuth() bool {
+	enabled, _ := a.Extra[OpenAIOAuthExternalRefreshExtraKey].(bool)
+	return enabled && a.IsOpenAIOAuth() && !a.IsOpenAIPersonalAccessToken()
 }
 
 // IsOpenAIOAuthLike reports OpenAI credentials that use the ChatGPT/Codex

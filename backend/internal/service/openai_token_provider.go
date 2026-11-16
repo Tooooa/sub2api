@@ -139,6 +139,9 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	if account.Platform != PlatformOpenAI || account.Type != AccountTypeOAuth {
 		return "", errors.New("not an openai oauth account")
 	}
+	if account.UsesExternallyRefreshedOpenAIOAuth() {
+		return p.getExternallyRefreshedAccessToken(ctx, account)
+	}
 
 	cacheKey := OpenAITokenCacheKey(account)
 
@@ -268,6 +271,30 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	}
 
 	return accessToken, nil
+}
+
+func (p *OpenAITokenProvider) getExternallyRefreshedAccessToken(ctx context.Context, account *Account) (string, error) {
+	expiresAt := account.GetOpenAITokenExpiresAt()
+	if p.accountRepo != nil && (expiresAt == nil || time.Until(*expiresAt) <= openAITokenRefreshSkew) {
+		// The sync writer may already have replaced a token still present in a request snapshot.
+		latest, err := p.accountRepo.GetByID(ctx, account.ID)
+		if err != nil {
+			return "", err
+		}
+		if latest == nil || !latest.IsOpenAIOAuth() || !latest.IsActive() {
+			return "", errors.New("externally refreshed OpenAI OAuth account is unavailable")
+		}
+		account = latest
+		expiresAt = latest.GetOpenAITokenExpiresAt()
+	}
+	if expiresAt == nil || !time.Now().Before(*expiresAt) {
+		return "", errors.New("waiting for a valid access token from the OpenAI OAuth refresh owner")
+	}
+	token := account.GetOpenAIAccessToken()
+	if strings.TrimSpace(token) == "" {
+		return "", errors.New("access_token not found in externally refreshed OpenAI OAuth credentials")
+	}
+	return token, nil
 }
 
 // disableAccountMissingRefreshToken 在请求路径上发现 OpenAI OAuth 账号

@@ -329,6 +329,30 @@ func TestBuildSchedulerMetadataAccount_KeepsOpenAIWSFlags(t *testing.T) {
 	require.Nil(t, got.Extra["unused_large_field"])
 }
 
+func TestBuildSchedulerMetadataAccount_KeepsExternalOAuthRefreshPolicy(t *testing.T) {
+	account := service.Account{
+		Platform:    service.PlatformOpenAI,
+		Type:        service.AccountTypeOAuth,
+		Status:      service.StatusActive,
+		Schedulable: true,
+		Extra:       map[string]any{service.OpenAIOAuthExternalRefreshExtraKey: true},
+		Credentials: map[string]any{
+			"expires_at":    time.Now().Add(time.Hour).Format(time.RFC3339),
+			"access_token":  "sensitive",
+			"refresh_token": "sensitive",
+		},
+	}
+	metadata := buildSchedulerMetadataAccount(account)
+	require.True(t, metadata.UsesExternallyRefreshedOpenAIOAuth())
+	require.True(t, metadata.IsSchedulable())
+	require.NotContains(t, metadata.Credentials, "access_token")
+	require.NotContains(t, metadata.Credentials, "refresh_token")
+
+	account.Credentials["expires_at"] = time.Now().Add(-time.Minute).Format(time.RFC3339)
+	metadata = buildSchedulerMetadataAccount(account)
+	require.False(t, metadata.IsSchedulable())
+}
+
 func TestBuildSchedulerMetadataAccount_KeepsGrokMediaEligibility(t *testing.T) {
 	t.Run("explicit override", func(t *testing.T) {
 		account := service.Account{
