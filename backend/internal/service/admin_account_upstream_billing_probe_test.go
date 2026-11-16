@@ -190,6 +190,28 @@ func TestUpdateAccountPreservesManagedUpstreamBillingProbeStateForUnrelatedEdit(
 	require.Equal(t, "value", updated.Extra["custom"])
 }
 
+func TestUpdateAccountPreservesOpenAIOAuthExternalRefresh(t *testing.T) {
+	const accountID = 310
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+		accountID: {ID: accountID, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive},
+	}}
+	svc := &adminServiceImpl{accountRepo: repo}
+	ctx := context.Background()
+
+	for _, tc := range []struct {
+		extra map[string]any
+		want  bool
+	}{
+		{map[string]any{OpenAIOAuthExternalRefreshExtraKey: true}, true},
+		{map[string]any{"custom": "value"}, true},
+		{map[string]any{OpenAIOAuthExternalRefreshExtraKey: false}, false},
+	} {
+		updated, err := svc.UpdateAccount(ctx, accountID, &UpdateAccountInput{Extra: tc.extra})
+		require.NoError(t, err)
+		require.Equal(t, tc.want, updated.UsesExternallyRefreshedOpenAIOAuth())
+	}
+}
+
 func TestUpdateAccountPreservesGrokBillingSnapshotForUnrelatedEdit(t *testing.T) {
 	accountID := int64(112)
 	billing := &xai.BillingSummary{

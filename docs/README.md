@@ -55,6 +55,7 @@ records the relay dependency and historical saturation losses.
 | Runtime GLM providers | Current configuration read back 2026-11-02 | Preserving existing provider configuration | [BIGMODEL.md](BIGMODEL.md) |
 | Production model allowlist | Both sites list the same 19 IDs; 38 site/model combinations passed on 2026-11-14 | Checking model parity, shared quota and recovery | [model-access.md](model-access.md) |
 | OAuth failure notifications | Installed 2026-11-15; usage-aware, deduplicated; 21 tests passed | Authorization failure alerts, historical account exclusions and local background task | [account-auth-alerts.md](account-auth-alerts.md) |
+| Shared OpenAI OAuth refresh | Opt-in per account | Assigning one refresh owner and configuring credential receivers | [Cockpit token sync](../tools/cockpit-token-sync/README.md#shared-openai-oauth-accounts) |
 | Image model access | Verified before release | Checking image models after an update | [image-model-access.md](image-model-access.md) |
 
 Other upstream feature documents in this directory retain their original scope.

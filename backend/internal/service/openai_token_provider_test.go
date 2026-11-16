@@ -966,3 +966,45 @@ func TestOpenAITokenProvider_NoRefreshTokenExpired_DisablesAccount(t *testing.T)
 	require.Equal(t, account.ID, blocker.accounts[0].ID)
 	require.Equal(t, "missing_refresh_token", blocker.reasons[0])
 }
+
+func TestOpenAIOAuthExternalRefreshUsesReplicatedAccessToken(t *testing.T) {
+	ctx := context.Background()
+	account := &Account{
+		ID: 310, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true,
+		Extra: map[string]any{OpenAIOAuthExternalRefreshExtraKey: true},
+		Credentials: map[string]any{
+			"access_token": "expired-token", "refresh_token": "owner-refresh-token",
+			"expires_at": time.Now().Add(-time.Minute).Format(time.RFC3339),
+		},
+	}
+	repo := &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{account.ID: account}}
+	cache := newOpenAITokenCacheStub()
+	cache.tokens[OpenAITokenCacheKey(account)] = "stale-cached-token"
+	provider := NewOpenAITokenProvider(repo, cache, nil)
+	refresher := NewOpenAITokenRefresher(&OpenAIOAuthService{}, repo)
+	provider.SetRefreshAPI(NewOAuthRefreshAPI(repo, cache), refresher)
+
+	require.False(t, refresher.CanRefresh(account))
+	require.False(t, account.IsSchedulable())
+	token, err := provider.GetAccessToken(ctx, account)
+	require.ErrorContains(t, err, "waiting for a valid access token")
+	require.Empty(t, token)
+	require.Equal(t, StatusActive, account.Status)
+	require.True(t, account.Schedulable)
+
+	fresh := *account
+	fresh.Credentials = map[string]any{
+		"access_token": "synced-token",
+		"expires_at":   time.Now().Add(time.Hour).Format(time.RFC3339),
+	}
+	repo.accounts[account.ID] = &fresh
+	token, err = provider.GetAccessToken(ctx, account)
+	require.NoError(t, err)
+	require.Equal(t, "synced-token", token)
+	require.True(t, fresh.IsSchedulable())
+	require.Zero(t, atomic.LoadInt32(&cache.getCalled))
+	require.Zero(t, atomic.LoadInt32(&cache.lockCalled))
+
+	_, err = (&OpenAIOAuthService{}).RefreshAccountToken(ctx, account)
+	require.ErrorContains(t, err, "receives OAuth credentials from its refresh owner")
+}

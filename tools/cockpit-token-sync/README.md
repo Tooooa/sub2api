@@ -16,7 +16,15 @@ This tool synchronizes matching OpenAI OAuth accounts between the local Cockpit 
 - If both sides changed and token age cannot establish a newer copy, the tool stops for that account instead of guessing.
 - Before a server-to-Cockpit pull, the previous encrypted envelope is saved under `/Volumes/MacData/09_tmp/cockpit-token-sync-backups/`.
 
-The sync process does not remove the underlying refresh-token race if Cockpit and Sub2API independently refresh the same OAuth account at the same instant. Keep the server as the runtime owner and use Cockpit primarily for re-authorization/import; the issue-time guard prevents stale state from being blindly copied over newer state.
+## Shared OpenAI OAuth accounts
+
+A rotating refresh token needs a single owner. The sync pass copies credentials after refresh. Two installations can consume the same refresh token between passes, even when each has its own Redis lock.
+
+For each OpenAI OAuth account that receives credentials from the owner, set `extra.openai_oauth_external_refresh` to `true` using the account update API. Send the full current `extra` object with that key added. The role is stored with the account. The background refresher skips it, the request path uses the synchronized access token, and account refresh through the admin API returns HTTP 409. An expired copy is ineligible for scheduling until a usable token arrives. A credential update retains the role.
+
+Select one owner before activating a shared account. With Cockpit as owner, mark each receiving Sub2API account as externally refreshed and verify that Cockpit and both sync passes run before access tokens expire. With a Sub2API instance as owner, leave refresh enabled there, mark the other instances as receivers, and exclude the same grant from independent refresh in Cockpit and other clients. Test synchronization with a new credential generation and verify that the receiving account stays schedulable. If transport to the owner fails, receivers can serve requests until their current access token expires.
+
+When transferring ownership, stop the old owner's refresh and confirm propagation of its latest credentials before enabling the new owner. Set `extra.openai_oauth_external_refresh` to `false` on the new owner. A release rollback to a build without this setting requires stopping or isolating the receiving account before the old build starts.
 
 Each SSH request has a 40-second hard process deadline, 15-second curl deadlines, SSH keepalive detection, and the whole pass has a 90-second deadline. Override them with `SUB2API_SYNC_REQUEST_TIMEOUT_MS`, `SUB2API_SYNC_CURL_TIMEOUT_SECONDS`, and `SUB2API_SYNC_PASS_TIMEOUT_MS` when diagnosing a slow link.
 

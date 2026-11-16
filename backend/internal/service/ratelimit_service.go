@@ -489,9 +489,9 @@ func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Acc
 					slog.Warn("oauth_401_invalidate_cache_failed", "account_id", authAccount.ID, "error", err)
 				}
 			}
-			// 缺少 refresh_token 的 OAuth 账号无法在冷却期内自愈（后台刷新服务也会跳过），
-			// 直接走 SetError 永久禁用，避免冷却结束后再被选中产生一发无意义的 502。
-			if strings.TrimSpace(authAccount.GetCredential("refresh_token")) == "" {
+			// 本站负责刷新的账号缺少 refresh_token 时无法自愈。
+			// 外部刷新账号可以在冷却期间由凭据所有者更新。
+			if strings.TrimSpace(authAccount.GetCredential("refresh_token")) == "" && !authAccount.UsesExternallyRefreshedOpenAIOAuth() {
 				msg := "Authentication failed (401): refresh_token missing, cannot recover"
 				if upstreamMsg != "" {
 					msg = "OAuth 401 (no refresh_token): " + upstreamMsg
